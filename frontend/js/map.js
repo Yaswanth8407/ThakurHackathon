@@ -39,10 +39,10 @@ class MapManager {
     // Custom Zoom control in bottom left
     L.control.zoom({ position: 'bottomleft' }).addTo(this.map);
 
-    // Dark Maritime Tile Layer (CartoDB Dark Matter)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19
+    // Free Open-Source Tile Layer (Zero API Key Required)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(this.map);
 
     // Layer groups
