@@ -1,0 +1,341 @@
+/* ==========================================================================
+   THE PIRATE NAVIGATION SYSTEM - CORE STYLESHEET
+   Aesthetic: Premium Maritime Cartography & Dark Ocean Pirate Odyssey
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Ocean & Nautical Dark Palette */
+  --ocean-abyss: #050a0f;
+  --ocean-deep: #09131c;
+  --ocean-surface: #0f1c29;
+  --ocean-card: rgba(15, 28, 41, 0.88);
+  --ocean-card-hover: rgba(21, 38, 56, 0.95);
+  --ocean-border: rgba(212, 175, 55, 0.22);
+  --ocean-border-active: rgba(212, 175, 55, 0.65);
+
+  /* Pirate Gold & Brass Accents */
+  --gold-primary: #d4af37;
+  --gold-light: #f5cb5c;
+  --gold-vibrant: #ffb703;
+  --gold-dark: #8c6d1f;
+  --brass-rim: #b8973a;
+
+  /* Parchment & Typography */
+  --parchment-light: #f8edd7;
+  --parchment-mid: #ebd2ad;
+  --parchment-dark: #caa776;
+  --text-muted: #8e9fae;
+  --text-dim: #607283;
+
+  /* Maritime Alerts & Status */
+  --crimson-danger: #e63946;
+  --crimson-glow: rgba(230, 57, 70, 0.4);
+  --emerald-safe: #2a9d8f;
+  --emerald-glow: rgba(42, 157, 143, 0.4);
+  --naval-blue: #3a86ff;
+  --naval-patrol: #1d3557;
+
+  /* Shadows & Glassmorphism */
+  --shadow-deep: 0 16px 40px rgba(0, 0, 0, 0.7);
+  --shadow-gold: 0 0 20px rgba(212, 175, 55, 0.25);
+  --shadow-danger: 0 0 25px rgba(230, 57, 70, 0.35);
+  --glass-blur: blur(12px);
+
+  /* Dimensions & Transitions */
+  --header-height: 64px;
+  --sidebar-width: 410px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--ocean-abyss);
+  color: var(--parchment-light);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ocean-abyss);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gold-dark);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary);
+}
+
+/* App Container Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background: radial-gradient(circle at 50% 20%, #102130 0%, #050a0f 85%);
+}
+
+/* --------------------------------------------------------------------------
+   HEADER NAVIGATION
+   -------------------------------------------------------------------------- */
+.app-header {
+  height: var(--header-height);
+  background: linear-gradient(180deg, rgba(13, 24, 36, 0.98) 0%, rgba(8, 15, 23, 0.95) 100%);
+  border-bottom: 1px solid var(--ocean-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-crest {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold-primary);
+  background: radial-gradient(circle, #22374b 0%, #0c1724 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-gold);
+}
+
+.brand-crest svg {
+  width: 24px;
+  height: 24px;
+  fill: var(--gold-light);
+}
+
+.brand-title-group h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--gold-light);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.brand-title-group p {
+  font-size: 0.72rem;
+  color: var(--parchment-dark);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.header-status-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  background: rgba(15, 28, 41, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--parchment-mid);
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--emerald-safe);
+  box-shadow: 0 0 10px var(--emerald-safe);
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Button Styling */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  border: 1px solid transparent;
+  outline: none;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #dfb141 0%, #aa8421 100%);
+  color: #0c1724;
+  border-color: var(--gold-light);
+  box-shadow: 0 3px 12px rgba(212, 175, 55, 0.35);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #f5cb5c 0%, #c4992e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(212, 175, 55, 0.5);
+}
+
+.btn-demo {
+  background: linear-gradient(135deg, #1d3557 0%, #0f1e31 100%);
+  color: var(--gold-light);
+  border: 1px solid var(--gold-primary);
+  box-shadow: var(--shadow-gold);
+}
+
+.btn-demo:hover {
+  background: linear-gradient(135deg, #2b4c7e 0%, #152943 100%);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(22, 38, 54, 0.8);
+  color: var(--parchment-light);
+  border: 1px solid var(--ocean-border);
+}
+
+.btn-secondary:hover {
+  background: rgba(30, 52, 74, 0.9);
+  border-color: var(--gold-primary);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%);
+  color: #fff;
+  border: 1px solid var(--crimson-danger);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #9a0007 100%);
+}
+
+.btn-icon {
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   MAIN VIEWPORT & SIDEBAR
+   -------------------------------------------------------------------------- */
+.main-viewport {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sidebar Drawer */
+.sidebar-drawer {
+  width: var(--sidebar-width);
+  height: 100%;
+  background: var(--ocean-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--ocean-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 500;
+  box-shadow: 6px 0 25px rgba(0, 0, 0, 0.6);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+/* Map Container */
+.map-container {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background-color: #081119;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  background: #081119;
+}
+
+/* Dark Nautical Leaflet Map Filter Styling */
+.leaflet-container {
+  background: #081119 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.85) contrast(1.15) saturate(1.1) hue-rotate(190deg);
+}
+
+/* Responsive Overrides */
+@media (max-width: 960px) {
+  :root {
+    --sidebar-width: 340px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    overflow: auto;
+  }
+  .main-viewport {
+    flex-direction: column;
+  }
+  .sidebar-drawer {
+    width: 100%;
+    height: 48vh;
+    border-right: none;
+    border-bottom: 1px solid var(--ocean-border);
+  }
+  .map-container {
+    height: 52vh;
+  }
+  .header-status-group {
+    display: none;
+  }
+}
