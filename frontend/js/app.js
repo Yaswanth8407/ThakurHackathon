@@ -53,7 +53,7 @@ class AppCoordinator {
     }
 
     if (statusDot) statusDot.style.backgroundColor = '#f5cb5c';
-    if (statusText) statusText.textContent = 'Sub-Second Autonomous Mode';
+    // if (statusText) statusText.textContent = 'Sub-Second Autonomous Mode';
   }
 
   async loadLakshadweepData() {

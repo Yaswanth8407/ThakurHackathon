@@ -980,3 +980,244 @@
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
+/* --------------------------------------------------------------------------
+   COMPONENTS RESPONSIVE STYLING (MOBILE & TABLETS)
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .port-select {
+    font-size: 0.76rem;
+    padding: 9px 12px 9px 34px;
+  }
+
+  .port-icon-prefix {
+    left: 10px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .port-select-arrow {
+    right: 10px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .telemetry-grid {
+    gap: 8px;
+  }
+
+  .telemetry-tile {
+    padding: 8px 10px;
+  }
+
+  .telemetry-metric {
+    font-size: 1.12rem;
+  }
+
+  .route-safety-status {
+    font-size: 0.72rem;
+    padding: 8px 10px;
+  }
+
+  .itinerary-list {
+    max-height: 140px;
+  }
+
+  .hazard-list-container {
+    max-height: 160px;
+  }
+
+  .map-legend-card {
+    bottom: 12px;
+    right: 12px;
+    padding: 8px 12px;
+    gap: 4px;
+    font-size: 0.66rem;
+  }
+
+  .compass-rose-container {
+    top: 12px;
+    right: 12px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .modal-card {
+    max-height: 86vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .vessel-presets {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .vessel-btn {
+    font-size: 0.6rem;
+    padding: 4px 1px;
+    border-radius: 4px;
+  }
+
+  .telemetry-grid {
+    gap: 6px;
+  }
+
+  .telemetry-tile {
+    padding: 6px 8px;
+  }
+
+  .telemetry-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.5px;
+  }
+
+  .telemetry-metric {
+    font-size: 0.98rem;
+    gap: 2px;
+  }
+
+  .telemetry-unit {
+    font-size: 0.58rem;
+  }
+
+  .route-safety-status {
+    font-size: 0.68rem;
+    padding: 6px 8px;
+    gap: 5px;
+  }
+
+  .itinerary-item {
+    padding: 6px 8px;
+    font-size: 0.74rem;
+  }
+
+  .step-num-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 0.62rem;
+  }
+
+  .hazard-actions-row {
+    gap: 6px;
+  }
+
+  .hazard-actions-row .btn {
+    font-size: 0.62rem !important;
+    padding: 5px 4px !important;
+  }
+
+  .hazard-route-row {
+    padding: 6px 8px;
+  }
+
+  .route-endpoints {
+    font-size: 0.72rem;
+  }
+
+  .route-meta {
+    font-size: 0.62rem;
+  }
+
+  .strait-status-select,
+  .atoll-danger-select {
+    font-size: 0.62rem !important;
+    padding: 2px 4px !important;
+  }
+
+  .map-legend-card {
+    bottom: 8px;
+    right: 8px;
+    padding: 6px 8px;
+    gap: 3px;
+    font-size: 0.6rem;
+    max-width: calc(100% - 16px);
+  }
+
+  .legend-title {
+    font-size: 0.6rem;
+  }
+
+  .legend-line {
+    width: 14px;
+    height: 3px;
+  }
+
+  .compass-rose-container {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .recalculation-alert-banner {
+    top: 8px;
+    padding: 8px 12px;
+    gap: 8px;
+    max-width: 95%;
+  }
+
+  .alert-banner-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .alert-banner-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .alert-banner-text h4 {
+    font-size: 0.78rem;
+  }
+
+  .alert-banner-text p {
+    font-size: 0.66rem;
+  }
+
+  .modal-card {
+    width: 95%;
+    padding: 16px 14px;
+    max-height: 88vh;
+  }
+
+  .modal-title {
+    font-size: 0.92rem;
+  }
+
+  .modal-actions {
+    gap: 6px;
+  }
+
+  .modal-actions .btn {
+    font-size: 0.68rem !important;
+    padding: 7px 8px !important;
+  }
+
+  .island-marker-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .island-marker-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .island-marker-label {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+  }
+}
+
+@media (max-width: 360px) {
+  .vessel-presets {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .telemetry-metric {
+    font-size: 0.9rem;
+  }
+}
+

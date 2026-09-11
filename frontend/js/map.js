@@ -62,6 +62,20 @@ class MapManager {
       }
     });
 
+    // Auto-invalidate size on viewport resize or mobile orientation change
+    window.addEventListener('resize', () => {
+      if (this.map) {
+        this.map.invalidateSize();
+      }
+    });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      }, 250);
+    });
+
     return this;
   }
 
