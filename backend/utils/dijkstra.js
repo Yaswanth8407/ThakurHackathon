@@ -8,8 +8,8 @@ function dijkstra(islands, routes, fromId, toId) {
   });
 
   routes.forEach(route => {
-    const from = route.fromIsland.toString();
-    const to = route.toIsland.toString();
+    const from = (route.fromIsland?._id || route.fromIsland).toString();
+    const to = (route.toIsland?._id || route.toIsland).toString();
     let weight = route.distance;
 
     if (route.isHazard || route.isPatrolZone) {

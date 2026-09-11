@@ -1,7 +1,7 @@
 /**
- * The Pirate Navigation System - Application Coordinator
- * Manages UI interactions, live Dijkstra pathfinding, automatic hazard recalculation,
- * route telemetry, and the PRD Section 7 Judge Demo Flow.
+ * The Pirate Navigation System - Mumbai Coordinator
+ * Manages UI interactions, live Dijkstra pathfinding in kilometers,
+ * automatic hazard recalculation, custom place creation, and Mumbai demo flow.
  */
 
 class AppCoordinator {
@@ -10,7 +10,7 @@ class AppCoordinator {
     this.routes = [];
     this.departureId = null;
     this.destinationId = null;
-    this.speedKnots = 10;
+    this.speedKmH = 30;
     this.currentPathResult = null;
     this.selectedRouteForModal = null;
     this.mapManager = null;
@@ -25,7 +25,7 @@ class AppCoordinator {
     this.mapManager.onRouteClicked = route => this.openRouteModal(route);
 
     // 2. Load Data from API
-    await this.loadArchipelagoData();
+    await this.loadMumbaiData();
 
     // 3. Bind UI Event Listeners
     this.bindEvents();
@@ -33,7 +33,7 @@ class AppCoordinator {
     // 4. Check API status
     this.checkApiStatus();
 
-    // 5. Default initial selection for instant impressive view (Skull Cove -> Black Flag Port)
+    // 5. Default initial selection: Kurla -> Thane
     this.setDefaultPorts();
   }
 
@@ -45,30 +45,27 @@ class AppCoordinator {
       const res = await fetch('/api/islands', { signal: AbortSignal.timeout(1500) });
       if (res.ok) {
         if (statusDot) statusDot.style.backgroundColor = '#2a9d8f';
-        if (statusText) statusText.textContent = 'Archipelago Online (Backend API)';
+        if (statusText) statusText.textContent = 'Backend Connected (Port 3000)';
         return;
       }
     } catch (e) {
-      // Backend not running
+      // Backend not running directly on same host
     }
 
     if (statusDot) statusDot.style.backgroundColor = '#f5cb5c';
-    if (statusText) statusText.textContent = 'Client Autonomous Mode';
+    if (statusText) statusText.textContent = 'Autonomous Engine (Client/API Ready)';
   }
 
-  async loadArchipelagoData() {
+  async loadMumbaiData() {
     this.islands = await ApiService.getIslands();
     this.routes = await ApiService.getRoutes();
 
-    // Populate dropdowns
     this.populatePortSelects();
 
-    // Render on Map
     this.mapManager.renderIslands(this.islands);
     this.mapManager.renderRoutes(this.routes, this.islands);
-    this.mapManager.fitArchipelago(this.islands);
+    this.mapManager.fitMumbai(this.islands);
 
-    // Render Hazard Manager List
     this.renderHazardList();
   }
 
@@ -78,35 +75,37 @@ class AppCoordinator {
 
     if (!depSelect || !destSelect) return;
 
-    depSelect.innerHTML = '<option value="">-- Choose Port of Departure --</option>';
-    destSelect.innerHTML = '<option value="">-- Choose Destination Port --</option>';
+    depSelect.innerHTML = '<option value="">-- Choose Starting Point --</option>';
+    destSelect.innerHTML = '<option value="">-- Choose Ending Point --</option>';
 
     this.islands.forEach(island => {
       const opt1 = document.createElement('option');
       opt1.value = island._id;
-      opt1.textContent = `${island.name} (${island.lat}°N, ${island.lng}°E)`;
+      opt1.textContent = `${island.name}${island.isCustom ? ' (Custom)' : ''} (${island.lat}°N, ${island.lng}°E)`;
       depSelect.appendChild(opt1);
 
       const opt2 = document.createElement('option');
       opt2.value = island._id;
-      opt2.textContent = `${island.name} (${island.lat}°N, ${island.lng}°E)`;
+      opt2.textContent = `${island.name}${island.isCustom ? ' (Custom)' : ''} (${island.lat}°N, ${island.lng}°E)`;
       destSelect.appendChild(opt2);
     });
+
+    if (this.departureId) depSelect.value = this.departureId;
+    if (this.destinationId) destSelect.value = this.destinationId;
   }
 
   setDefaultPorts() {
-    const skullCove = this.islands.find(i => i.name.toLowerCase().includes('skull'));
-    const blackFlag = this.islands.find(i => i.name.toLowerCase().includes('black flag') || i.name.toLowerCase().includes('storm'));
+    const kurla = this.islands.find(i => i.name.toLowerCase().includes('kurla'));
+    const thane = this.islands.find(i => i.name.toLowerCase().includes('thane'));
 
-    if (skullCove && blackFlag) {
-      this.setDeparture(skullCove._id);
-      this.setDestination(blackFlag._id);
+    if (kurla && thane) {
+      this.setDeparture(kurla._id);
+      this.setDestination(thane._id);
       this.plotCourse();
     }
   }
 
   bindEvents() {
-    // Departure & Destination selects
     const depSelect = document.getElementById('departure-select');
     const destSelect = document.getElementById('destination-select');
 
@@ -135,30 +134,30 @@ class AppCoordinator {
       }
     });
 
-    // Speed Slider
+    // Speed Slider (km/h)
     const speedSlider = document.getElementById('speed-slider');
     const speedDisplay = document.getElementById('speed-display');
 
     speedSlider?.addEventListener('input', e => {
-      this.speedKnots = parseInt(e.target.value, 10);
-      if (speedDisplay) speedDisplay.textContent = `${this.speedKnots} KTS`;
+      this.speedKmH = parseInt(e.target.value, 10);
+      if (speedDisplay) speedDisplay.textContent = `${this.speedKmH} km/h`;
       this.updateTravelTime();
     });
 
-    // Vessel Presets
+    // Speed Presets
     document.querySelectorAll('.vessel-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         document.querySelectorAll('.vessel-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const speed = parseInt(btn.dataset.speed, 10);
-        this.speedKnots = speed;
+        this.speedKmH = speed;
         if (speedSlider) speedSlider.value = speed;
-        if (speedDisplay) speedDisplay.textContent = `${speed} KTS`;
+        if (speedDisplay) speedDisplay.textContent = `${speed} km/h`;
         this.updateTravelTime();
       });
     });
 
-    // Plot Course Button
+    // Plot Course
     document.getElementById('plot-course-btn')?.addEventListener('click', () => {
       this.plotCourse();
     });
@@ -168,24 +167,56 @@ class AppCoordinator {
       this.triggerBlockadeScenario();
     });
 
-    // Scenario Preset: Clear
+    // Clear Hazards
     document.getElementById('preset-clear-btn')?.addEventListener('click', () => {
       this.clearAllHazards();
     });
 
-    // Judge Demo Button
+    // Judge Demo
     document.getElementById('judge-demo-btn')?.addEventListener('click', () => {
       this.runJudgeDemoFlow();
     });
 
-    // Modal Close
+    // Hazard Modal Close
     document.getElementById('modal-close-btn')?.addEventListener('click', () => {
       this.closeRouteModal();
     });
 
-    // Alert Banner Close
+    // Recalculation Alert Close
     document.getElementById('alert-close-btn')?.addEventListener('click', () => {
       this.hideRecalculationAlert();
+    });
+
+    // Custom Place Modal
+    document.getElementById('open-custom-place-modal-btn')?.addEventListener('click', () => {
+      this.openCustomPlaceModal();
+    });
+
+    document.getElementById('custom-modal-close-btn')?.addEventListener('click', () => {
+      this.closeCustomPlaceModal();
+    });
+
+    // Pick Coordinates on Map
+    document.getElementById('pick-on-map-btn')?.addEventListener('click', () => {
+      this.closeCustomPlaceModal();
+      this.showRecalculationAlert(
+        '🎯 Map Coordinate Picker Active',
+        'Click anywhere on the Mumbai map to drop a pin and set your custom starting/ending point.'
+      );
+      this.mapManager.enableMapClickForCoords((lat, lng) => {
+        document.getElementById('custom-place-lat').value = lat;
+        document.getElementById('custom-place-lng').value = lng;
+        this.openCustomPlaceModal();
+        this.showRecalculationAlert(
+          '📍 Pin Dropped!',
+          `Selected coordinates: ${lat}°N, ${lng}°E. Enter a name and click Save.`
+        );
+      });
+    });
+
+    // Save Custom Place
+    document.getElementById('save-custom-place-btn')?.addEventListener('click', async () => {
+      await this.handleSaveCustomPlace();
     });
   }
 
@@ -210,26 +241,25 @@ class AppCoordinator {
   }
 
   /**
-   * Plot Safe Course (Dijkstra)
+   * Plot Safe Route in Kilometers
    */
   async plotCourse(isAutoRecalculate = false) {
     if (!this.departureId || !this.destinationId) {
-      alert('Please choose both Departure and Destination ports.');
+      alert('Please choose both Departure and Destination locations.');
       return;
     }
 
     if (this.departureId === this.destinationId) {
-      alert('Departure and Destination cannot be the same port.');
+      alert('Departure and Destination cannot be the same place.');
       return;
     }
 
     const previousDistance = this.currentPathResult ? this.currentPathResult.totalDistance : null;
 
-    // Call API / Dijkstra
     const result = await ApiService.calculatePath(
       this.departureId,
       this.destinationId,
-      this.speedKnots
+      this.speedKmH
     );
 
     this.currentPathResult = result;
@@ -239,22 +269,16 @@ class AppCoordinator {
       return;
     }
 
-    // Render active course on map
     this.mapManager.drawCalculatedPath(result.path, this.islands);
-
-    // Update Telemetry HUD
     this.renderTelemetryHUD(result);
-
-    // Render Waypoint breakdown
     this.renderWaypointItinerary(result);
 
-    // If this was an auto-recalculation caused by hazard
     if (isAutoRecalculate && result.isRerouted) {
       const diff = previousDistance ? (result.totalDistance - previousDistance).toFixed(1) : '0';
-      const detourText = diff > 0 ? `Detour added +${diff} NM` : 'Alternate passage charted';
+      const detourText = diff > 0 ? `Detour added +${diff} km` : 'Alternative safe route found';
       this.showRecalculationAlert(
-        '⚠️ Route Automatically Recalculated!',
-        `Active passage blocked by hazard or naval patrol. Safest detour plotted (${detourText}).`
+        '⚠️ Route Recalculated!',
+        `Active corridor blocked by hazard or blockade. Safest detour plotted (${detourText}).`
       );
     }
   }
@@ -267,21 +291,20 @@ class AppCoordinator {
 
     if (distEl) distEl.textContent = result.totalDistance.toFixed(1);
 
-    // Format ETA
-    const totalHours = result.estimatedTimeHours || result.totalDistance / this.speedKnots;
+    const totalHours = result.estimatedTimeHours || result.totalDistance / this.speedKmH;
     const hours = Math.floor(totalHours);
     const minutes = Math.round((totalHours - hours) * 60);
-    if (timeEl) timeEl.textContent = `${hours}h ${minutes}m`;
+    if (timeEl) timeEl.textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} mins`;
 
-    if (waypointsEl) waypointsEl.textContent = `${result.path.length} Ports`;
+    if (waypointsEl) waypointsEl.textContent = `${result.path.length} Stops`;
 
     if (statusEl) {
       if (result.isRerouted) {
         statusEl.className = 'route-safety-status rerouted';
-        statusEl.innerHTML = `<span>🛡️</span> Hazard Evaded (${result.hazardsAvoided || 1} Blockade Rerouted)`;
+        statusEl.innerHTML = `<span>🛡️</span> Hazard Evaded (${result.hazardsAvoided || 1} Detour Plotted)`;
       } else {
         statusEl.className = 'route-safety-status safe';
-        statusEl.innerHTML = `<span>⚓</span> Safe Sea Lane Plotted`;
+        statusEl.innerHTML = `<span>⚓</span> Clear Safe Corridor Plotted`;
       }
     }
   }
@@ -289,10 +312,10 @@ class AppCoordinator {
   updateTravelTime() {
     if (!this.currentPathResult) return;
     const timeEl = document.getElementById('metric-time');
-    const totalHours = this.currentPathResult.totalDistance / this.speedKnots;
+    const totalHours = this.currentPathResult.totalDistance / this.speedKmH;
     const hours = Math.floor(totalHours);
     const minutes = Math.round((totalHours - hours) * 60);
-    if (timeEl) timeEl.textContent = `${hours}h ${minutes}m`;
+    if (timeEl) timeEl.textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} mins`;
   }
 
   renderWaypointItinerary(result) {
@@ -337,14 +360,11 @@ class AppCoordinator {
     }
     const container = document.getElementById('itinerary-list');
     if (container) {
-      container.innerHTML = `<div style="padding:10px; color:#ff758f; font-size:0.75rem;">All connecting sea lanes are blocked by naval patrols or hazards. Clear a route to chart course.</div>`;
+      container.innerHTML = `<div style="padding:10px; color:#ff758f; font-size:0.75rem;">All connecting corridors are blocked. Clear a route to chart passage.</div>`;
     }
     this.mapManager.activeRouteLayer.clearLayers();
   }
 
-  /**
-   * Hazard Manager in Sidebar
-   */
   renderHazardList() {
     const container = document.getElementById('hazard-list-container');
     if (!container) return;
@@ -352,8 +372,8 @@ class AppCoordinator {
     container.innerHTML = '';
 
     this.routes.forEach(route => {
-      const fromName = route.fromIsland?.name || 'Island A';
-      const toName = route.toIsland?.name || 'Island B';
+      const fromName = route.fromIsland?.name || 'Place A';
+      const toName = route.toIsland?.name || 'Place B';
 
       const row = document.createElement('div');
       row.className = `hazard-route-row ${route.isHazard ? 'is-active-hazard' : ''} ${route.isPatrolZone ? 'is-active-patrol' : ''}`;
@@ -361,19 +381,18 @@ class AppCoordinator {
       row.innerHTML = `
         <div class="hazard-route-info">
           <span class="route-endpoints">${fromName} ⟷ ${toName}</span>
-          <span class="route-meta">${route.distance} NM &bull; ${route.isHazard ? 'Tempest' : route.isPatrolZone ? 'Naval Patrol' : 'Clear'}</span>
+          <span class="route-meta">${route.distance} km &bull; ${route.isHazard ? 'Hazard' : route.isPatrolZone ? 'Patrol' : 'Clear'}</span>
         </div>
         <div class="hazard-toggle-group">
-          <button class="toggle-badge-btn ${route.isHazard ? 'hazard-on' : ''}" data-type="hazard" title="Toggle Sea Tempest">
+          <button class="toggle-badge-btn ${route.isHazard ? 'hazard-on' : ''}" data-type="hazard" title="Toggle Hazard">
             ⚠️ Hazard
           </button>
-          <button class="toggle-badge-btn ${route.isPatrolZone ? 'patrol-on' : ''}" data-type="patrol" title="Toggle Naval Patrol">
+          <button class="toggle-badge-btn ${route.isPatrolZone ? 'patrol-on' : ''}" data-type="patrol" title="Toggle Patrol Blockade">
             👑 Patrol
           </button>
         </div>
       `;
 
-      // Event listeners for toggle buttons
       const hazardBtn = row.querySelector('[data-type="hazard"]');
       const patrolBtn = row.querySelector('[data-type="patrol"]');
 
@@ -400,30 +419,22 @@ class AppCoordinator {
   async applyRouteHazardUpdate(routeId, { isHazard, isPatrolZone }) {
     await ApiService.toggleHazard(routeId, { isHazard, isPatrolZone });
 
-    // Refresh routes
     this.routes = await ApiService.getRoutes();
-
-    // Re-render map and list
     this.mapManager.renderRoutes(this.routes, this.islands);
     this.renderHazardList();
 
-    // AUTO RECALCULATION CHECK
-    // If we currently have a plotted route, re-run Dijkstra automatically!
     if (this.departureId && this.destinationId) {
       await this.plotCourse(true);
     }
   }
 
-  /**
-   * Modal for clicking on a map route
-   */
   openRouteModal(route) {
     this.selectedRouteForModal = route;
     const modal = document.getElementById('route-hazard-modal');
     const infoEl = document.getElementById('modal-route-details');
 
-    const fromName = route.fromIsland?.name || 'Island A';
-    const toName = route.toIsland?.name || 'Island B';
+    const fromName = route.fromIsland?.name || 'Place A';
+    const toName = route.toIsland?.name || 'Place B';
 
     if (infoEl) {
       infoEl.innerHTML = `
@@ -431,9 +442,9 @@ class AppCoordinator {
           ${fromName} ⟷ ${toName}
         </div>
         <div style="font-size:0.75rem; color:#8e9fae;">
-          Distance: <strong>${route.distance} NM</strong> | Speed: ${route.speed || 10} KTS<br/>
+          Distance: <strong>${route.distance} km</strong> | Speed: ${route.speed || 30} km/h<br/>
           Current Status: <span style="color:${route.isHazard ? '#ff758f' : route.isPatrolZone ? '#3a86ff' : '#52b788'}; font-weight:600;">
-            ${route.isHazard ? '⚠️ Active Maritime Hazard' : route.isPatrolZone ? '👑 Royal Navy Patrol Zone' : '🌊 Clear Safe Sea Lane'}
+            ${route.isHazard ? '⚠️ Active Maritime / Road Hazard' : route.isPatrolZone ? '👑 Restricted Patrol Blockade' : '🌊 Clear Safe Corridor'}
           </span>
         </div>
       `;
@@ -471,6 +482,62 @@ class AppCoordinator {
     document.getElementById('route-hazard-modal')?.classList.remove('active');
   }
 
+  openCustomPlaceModal() {
+    document.getElementById('custom-place-modal')?.classList.add('active');
+  }
+
+  closeCustomPlaceModal() {
+    document.getElementById('custom-place-modal')?.classList.remove('active');
+  }
+
+  async handleSaveCustomPlace() {
+    const nameInput = document.getElementById('custom-place-name');
+    const latInput = document.getElementById('custom-place-lat');
+    const lngInput = document.getElementById('custom-place-lng');
+
+    const name = nameInput.value.trim();
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+
+    if (!name) {
+      alert('Please provide a name for this custom location.');
+      return;
+    }
+
+    if (isNaN(lat) || isNaN(lng)) {
+      alert('Please enter valid numerical latitude and longitude, or click "Click On Map to Pick Coordinates".');
+      return;
+    }
+
+    // Create custom place via API
+    const newPlace = await ApiService.createCustomPlace(name, lat, lng);
+
+    // Refresh data
+    this.islands = await ApiService.getIslands();
+    this.routes = await ApiService.getRoutes();
+
+    this.populatePortSelects();
+    this.mapManager.renderIslands(this.islands);
+    this.mapManager.renderRoutes(this.routes, this.islands);
+    this.renderHazardList();
+
+    this.closeCustomPlaceModal();
+    this.mapManager.removeTempPin();
+
+    // Auto set as Destination or Departure
+    if (!this.departureId) {
+      this.setDeparture(newPlace._id);
+    } else {
+      this.setDestination(newPlace._id);
+      this.plotCourse();
+    }
+
+    this.showRecalculationAlert(
+      '⭐ Custom Place Added!',
+      `"${newPlace.name}" added and automatically connected to nearest Mumbai network nodes!`
+    );
+  }
+
   showRecalculationAlert(title, text) {
     const banner = document.getElementById('recalculation-alert-banner');
     const titleEl = document.getElementById('alert-title');
@@ -481,7 +548,6 @@ class AppCoordinator {
 
     banner?.classList.add('visible');
 
-    // Auto dismiss after 6 seconds
     clearTimeout(this.alertTimeout);
     this.alertTimeout = setTimeout(() => {
       this.hideRecalculationAlert();
@@ -492,11 +558,7 @@ class AppCoordinator {
     document.getElementById('recalculation-alert-banner')?.classList.remove('visible');
   }
 
-  /**
-   * Scenarios
-   */
   async triggerBlockadeScenario() {
-    // Find the primary leg on current path to block
     if (this.currentPathResult && this.currentPathResult.path.length >= 2) {
       const from = this.currentPathResult.path[0];
       const to = this.currentPathResult.path[1];
@@ -512,7 +574,6 @@ class AppCoordinator {
       }
     }
 
-    // Fallback: block first available route
     if (this.routes.length > 0) {
       await this.applyRouteHazardUpdate(this.routes[0]._id, { isHazard: false, isPatrolZone: true });
     }
@@ -527,14 +588,13 @@ class AppCoordinator {
       await this.plotCourse(false);
     }
     this.showRecalculationAlert(
-      '🌊 All Seas Cleared',
-      'All naval patrol blockades and sea tempests lifted. Direct shortest lanes restored.'
+      '🌊 All Corridors Cleared',
+      'All patrol blockades and hazards lifted. Direct shortest paths restored.'
     );
   }
 
   /**
-   * PRD Section 7: Judge Demo Flow
-   * Steps judges through the exact 5-step presentation script.
+   * Mumbai Demo Flow (PRD Section 7)
    */
   async runJudgeDemoFlow() {
     if (this.isDemoRunning) return;
@@ -552,53 +612,61 @@ class AppCoordinator {
       banner?.classList.add('active');
     };
 
-    // Step 1: Show Island Network
+    // Step 1: Network Overview
     updateBanner(
       1,
-      'Archipelago Overview',
-      '12 pirate islands connected by 22+ charted sea routes with nautical mile weights.'
+      'Mumbai Network Overview',
+      'Displaying Mumbai corridors (Kurla, Thane, Bandra, Colaba, Vashi) with kilometer distances.'
     );
     await this.clearAllHazards();
-    this.mapManager.fitArchipelago(this.islands);
+    this.mapManager.fitMumbai(this.islands);
     await new Promise(r => setTimeout(r, 3000));
 
-    // Step 2: Select departure and destination & plot course
+    // Step 2: Plot Kurla to Thane
     updateBanner(
       2,
-      'Plot Optimal Course',
-      'Selecting Skull Cove ➔ Black Flag Port. Dijkstra calculates direct shortest route.'
+      'Plot Optimal Route',
+      'Plotting Kurla ➔ Thane. Dijkstra finds shortest route via Ghatkopar (20.7 km).'
     );
-    const skull = this.islands.find(i => i.name === 'Skull Cove');
-    const blackFlag = this.islands.find(i => i.name === 'Black Flag Port');
-    if (skull && blackFlag) {
-      this.setDeparture(skull._id);
-      this.setDestination(blackFlag._id);
+    const kurla = this.islands.find(i => i.name === 'Kurla');
+    const thane = this.islands.find(i => i.name === 'Thane');
+    if (kurla && thane) {
+      this.setDeparture(kurla._id);
+      this.setDestination(thane._id);
       await this.plotCourse();
     }
     await new Promise(r => setTimeout(r, 3500));
 
-    // Step 3: Trigger a naval patrol hazard on the active route
+    // Step 3: Trigger blockade on Ghatkopar-Thane
     updateBanner(
       3,
-      'Naval Patrol Declared!',
-      'Royal Navy declares a blockade right across the current plotted sea passage!'
+      'Patrol Blockade Declared!',
+      'Declaring a blockade on Ghatkopar ⟷ Thane corridor!'
     );
-    await this.triggerBlockadeScenario();
+    const gkThane = this.routes.find(r => 
+      (r.fromIsland?.name === 'Ghatkopar' && r.toIsland?.name === 'Thane') ||
+      (r.fromIsland?.name === 'Thane' && r.toIsland?.name === 'Ghatkopar')
+    );
+    if (gkThane) {
+      await this.applyRouteHazardUpdate(gkThane._id, { isHazard: false, isPatrolZone: true });
+    } else {
+      await this.triggerBlockadeScenario();
+    }
     await new Promise(r => setTimeout(r, 4000));
 
-    // Step 4: Show recalculated path
+    // Step 4: Live Recalculation around hazard
     updateBanner(
       4,
       'Instant Live Recalculation',
-      'Dijkstra dynamically avoided the penalized blockade and charted a safe detour around it.'
+      'Dijkstra dynamically avoided the blockade and rerouted via Vashi (33.7 km)!'
     );
     await new Promise(r => setTimeout(r, 4000));
 
-    // Step 5: Technical summary
+    // Step 5: Technical Architecture
     updateBanner(
       5,
       'Technical Architecture Note',
-      'Weighted graph shortest-path engine with dynamic edge penalties for real-time maritime avoidance.'
+      'Real-time Dijkstra over a weighted Mumbai graph with dynamic hazard penalties & kilometers.'
     );
     await new Promise(r => setTimeout(r, 5000));
 
@@ -607,7 +675,6 @@ class AppCoordinator {
   }
 }
 
-// Instantiate and attach globally
 window.appCoordinator = new AppCoordinator();
 document.addEventListener('DOMContentLoaded', () => {
   window.appCoordinator.init();

@@ -1,15 +1,13 @@
 /**
- * The Pirate Navigation System - Client Pathfinding Engine
- * Mirrors the backend Dijkstra algorithm and data model exactly.
- * Operates seamlessly both in tandem with the backend and as an autonomous fallback.
+ * The Pirate Navigation System - Mumbai Edition Pathfinding Engine
+ * Implements Dijkstra shortest-path calculation, hazard avoidance penalties,
+ * kilometer distances (Haversine), and dynamic custom place integration.
  */
 
 const HAZARD_PENALTY = 10;
+const EARTH_RADIUS_KM = 6371; // Earth radius in kilometers
 
-// Earth radius in nautical miles for spherical distance fallback
-const NAUTICAL_MILE_RADIUS = 3440.065;
-
-function calculateNauticalDistance(lat1, lon1, lat2, lon2) {
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -19,48 +17,46 @@ function calculateNauticalDistance(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(NAUTICAL_MILE_RADIUS * c * 10) / 10;
+  return Math.round(EARTH_RADIUS_KM * c * 10) / 10;
 }
 
-// 12 Archipelago Island Nodes matching backend/seed.js
+// 12 Core Mumbai Network Nodes
 const SEED_ISLANDS = [
-  { _id: '65f000000000000000000001', name: 'Skull Cove', lat: 12.5, lng: 77.8, type: 'Cove' },
-  { _id: '65f000000000000000000002', name: 'Tortuga Bay', lat: 13.2, lng: 76.5, type: 'Port' },
-  { _id: '65f000000000000000000003', name: 'Port Royal', lat: 11.8, lng: 78.2, type: 'Port' },
-  { _id: '65f000000000000000000004', name: 'Isla de Muerta', lat: 14.0, lng: 75.8, type: 'Abyss' },
-  { _id: '65f000000000000000000005', name: 'Shipwreck Island', lat: 12.0, lng: 75.0, type: 'Atoll' },
-  { _id: '65f000000000000000000006', name: "Dead Man's Pass", lat: 13.5, lng: 78.5, type: 'Cove' },
-  { _id: '65f00000000000000000007', name: "Buccaneer's Landing", lat: 14.5, lng: 77.2, type: 'Fortress' },
-  { _id: '65f000000000000000000008', name: 'Coral Reef Point', lat: 11.5, lng: 76.0, type: 'Reef' },
-  { _id: '65f000000000000000000009', name: 'Storm Breaker', lat: 13.8, lng: 79.0, type: 'Fortress' },
-  { _id: '65f00000000000000000000a', name: 'Emerald Isle', lat: 12.8, lng: 74.5, type: 'Atoll' },
-  { _id: '65f00000000000000000000b', name: 'Black Flag Port', lat: 14.2, lng: 79.5, type: 'Port' },
-  { _id: '65f00000000000000000000c', name: 'Mystic Shores', lat: 11.2, lng: 77.5, type: 'Outpost' }
+  { _id: '65f000000000000000000001', name: 'Colaba', lat: 18.9067, lng: 72.8147, type: 'Port', isCustom: false },
+  { _id: '65f000000000000000000002', name: 'Marine Drive', lat: 18.9438, lng: 72.8232, type: 'Cove', isCustom: false },
+  { _id: '65f000000000000000000003', name: 'Dadar', lat: 19.0178, lng: 72.8478, type: 'Central Hub', isCustom: false },
+  { _id: '65f000000000000000000004', name: 'Bandra', lat: 19.0596, lng: 72.8295, type: 'Coastal Fortress', isCustom: false },
+  { _id: '65f000000000000000000005', name: 'Kurla', lat: 19.0726, lng: 72.8845, type: 'Transit Node', isCustom: false },
+  { _id: '65f000000000000000000006', name: 'Ghatkopar', lat: 19.0860, lng: 72.9090, type: 'East Corridor', isCustom: false },
+  { _id: '65f000000000000000000007', name: 'Andheri', lat: 19.1197, lng: 72.8464, type: 'West Corridor', isCustom: false },
+  { _id: '65f000000000000000000008', name: 'Borivali', lat: 19.2307, lng: 72.8567, type: 'North Gate', isCustom: false },
+  { _id: '65f000000000000000000009', name: 'Thane', lat: 19.2183, lng: 72.9781, type: 'Creek Harbour', isCustom: false },
+  { _id: '65f00000000000000000000a', name: 'Vashi', lat: 19.0771, lng: 72.9986, type: 'Navi Mumbai', isCustom: false },
+  { _id: '65f00000000000000000000b', name: 'Trombay', lat: 19.0160, lng: 72.9150, type: 'Harbour Node', isCustom: false },
+  { _id: '65f00000000000000000000c', name: 'Elephanta Island', lat: 18.9633, lng: 72.9315, type: 'Sea Fortress', isCustom: false }
 ];
 
 const SEED_ROUTE_DEFS = [
-  { from: 'Skull Cove', to: 'Tortuga Bay', distance: 85 },
-  { from: 'Skull Cove', to: 'Port Royal', distance: 62 },
-  { from: 'Skull Cove', to: 'Coral Reef Point', distance: 45 },
-  { from: 'Tortuga Bay', to: 'Isla de Muerta', distance: 70 },
-  { from: 'Tortuga Bay', to: 'Shipwreck Island', distance: 55 },
-  { from: 'Port Royal', to: "Dead Man's Pass", distance: 78 },
-  { from: 'Port Royal', to: 'Skull Cove', distance: 62 },
-  { from: 'Isla de Muerta', to: "Buccaneer's Landing", distance: 50 },
-  { from: 'Isla de Muerta', to: 'Storm Breaker', distance: 65 },
-  { from: 'Shipwreck Island', to: 'Emerald Isle', distance: 90 },
-  { from: 'Shipwreck Island', to: 'Coral Reef Point', distance: 40 },
-  { from: "Dead Man's Pass", to: 'Storm Breaker', distance: 35 },
-  { from: "Dead Man's Pass", to: 'Black Flag Port', distance: 58 },
-  { from: "Buccaneer's Landing", to: 'Skull Cove', distance: 110 },
-  { from: "Buccaneer's Landing", to: 'Black Flag Port', distance: 42 },
-  { from: 'Coral Reef Point', to: 'Mystic Shores', distance: 48 },
-  { from: 'Coral Reef Point', to: 'Shipwreck Island', distance: 40 },
-  { from: 'Storm Breaker', to: 'Black Flag Port', distance: 30 },
-  { from: 'Emerald Isle', to: 'Mystic Shores', distance: 72 },
-  { from: 'Mystic Shores', to: 'Port Royal', distance: 55 },
-  { from: 'Skull Cove', to: "Dead Man's Pass", distance: 120 },
-  { from: 'Tortuga Bay', to: "Buccaneer's Landing", distance: 88 }
+  { from: 'Colaba', to: 'Marine Drive', distance: 4.5 },
+  { from: 'Colaba', to: 'Elephanta Island', distance: 11.2 },
+  { from: 'Marine Drive', to: 'Dadar', distance: 9.2 },
+  { from: 'Dadar', to: 'Bandra', distance: 5.1 },
+  { from: 'Dadar', to: 'Kurla', distance: 7.3 },
+  { from: 'Bandra', to: 'Kurla', distance: 6.8 },
+  { from: 'Bandra', to: 'Andheri', distance: 8.4 },
+  { from: 'Kurla', to: 'Ghatkopar', distance: 4.2 },
+  { from: 'Kurla', to: 'Andheri', distance: 8.1 },
+  { from: 'Kurla', to: 'Trombay', distance: 7.5 },
+  { from: 'Trombay', to: 'Elephanta Island', distance: 7.2 },
+  { from: 'Trombay', to: 'Vashi', distance: 12.5 },
+  { from: 'Ghatkopar', to: 'Vashi', distance: 14.0 },
+  { from: 'Ghatkopar', to: 'Thane', distance: 16.5 },
+  { from: 'Andheri', to: 'Borivali', distance: 13.8 },
+  { from: 'Borivali', to: 'Thane', distance: 18.2 },
+  { from: 'Thane', to: 'Vashi', distance: 15.5 },
+  { from: 'Andheri', to: 'Ghatkopar', distance: 7.8 },
+  { from: 'Colaba', to: 'Dadar', distance: 13.5 },
+  { from: 'Dadar', to: 'Trombay', distance: 11.0 }
 ];
 
 function generateSeedRoutes(islands) {
@@ -76,20 +72,10 @@ function generateSeedRoutes(islands) {
 
     return {
       _id: hex,
-      fromIsland: {
-        _id: from._id,
-        name: from.name,
-        lat: from.lat,
-        lng: from.lng
-      },
-      toIsland: {
-        _id: to._id,
-        name: to.name,
-        lat: to.lat,
-        lng: to.lng
-      },
+      fromIsland: from,
+      toIsland: to,
       distance: def.distance,
-      speed: 10,
+      speed: 30,
       isHazard: false,
       isPatrolZone: false
     };
@@ -98,7 +84,6 @@ function generateSeedRoutes(islands) {
 
 /**
  * Dijkstra Pathfinding Algorithm
- * Exactly matching backend/utils/dijkstra.js
  */
 function dijkstra(islands, routes, fromId, toId) {
   const graph = {};
@@ -194,10 +179,10 @@ function dijkstra(islands, routes, fromId, toId) {
 }
 
 /**
- * High-level Path Calculation
+ * High-level Path Calculation with Detour Detection
  */
-function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
-  const speed = Number(speedKnots) > 0 ? Number(speedKnots) : 10;
+function calculateRoutePath(islands, routes, fromId, toId, speedKmH = 30) {
+  const speed = Number(speedKmH) > 0 ? Number(speedKmH) : 30;
   const fromStr = String(fromId);
   const toStr = String(toId);
 
@@ -207,7 +192,7 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
   });
 
   if (!islandMap[fromStr] || !islandMap[toStr]) {
-    throw new Error('Departure or destination not found');
+    throw new Error('Departure or destination not found in Mumbai network');
   }
 
   if (fromStr === toStr) {
@@ -222,11 +207,11 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
     };
   }
 
-  // Baseline unhindered route (clean seas)
+  // Clean baseline
   const cleanRoutes = routes.map(r => ({ ...r, isHazard: false, isPatrolZone: false }));
   const baselineResult = dijkstra(islands, cleanRoutes, fromStr, toStr);
 
-  // Active route with current hazards
+  // Active path
   const activeResult = dijkstra(islands, routes, fromStr, toStr);
 
   if (!activeResult) {
@@ -238,16 +223,15 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
       legs: [],
       isRerouted: false,
       hazardsAvoided: 0,
-      message: 'No safe route found between these islands'
+      message: 'No safe route found between these Mumbai locations'
     };
   }
 
-  // Detect if route was diverted
+  // Detect if route was rerouted
   let isRerouted = false;
   let hazardsAvoided = 0;
 
   if (baselineResult && baselineResult.path.length > 0) {
-    // Check if the baseline path intersected any currently active hazards
     baselineResult.legs.forEach(leg => {
       const match = routes.find(r => {
         const rf = String(r.fromIsland._id || r.fromIsland);
@@ -268,7 +252,7 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
     islandDetails: activeResult.path.map(id => islandMap[id]),
     totalDistance: activeResult.totalDistance,
     estimatedTimeHours,
-    speedKnots: speed,
+    speedKmH: speed,
     legs: activeResult.legs.map(leg => ({
       from: leg.from,
       to: leg.to,
@@ -283,11 +267,44 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
   };
 }
 
-// Export for browser global
+/**
+ * Connect a custom place to the nearest 2 nodes in the Mumbai network
+ */
+function integrateCustomLocation(customPlace, existingIslands) {
+  // Sort existing nodes by distance to the new custom location
+  const candidates = existingIslands
+    .filter(i => String(i._id) !== String(customPlace._id))
+    .map(i => ({
+      island: i,
+      distance: calculateHaversineKm(customPlace.lat, customPlace.lng, i.lat, i.lng)
+    }))
+    .sort((a, b) => a.distance - b.distance);
+
+  // Take the 2 closest nodes
+  const nearest = candidates.slice(0, 2);
+
+  const newRoutes = nearest.map((cand, idx) => {
+    const hex = (9000 + Math.floor(Math.random() * 9000) + idx).toString(16).padStart(24, '0');
+    return {
+      _id: hex,
+      fromIsland: customPlace,
+      toIsland: cand.island,
+      distance: cand.distance,
+      speed: 30,
+      isHazard: false,
+      isPatrolZone: false
+    };
+  });
+
+  return newRoutes;
+}
+
+// Export for browser
 window.PathfindingEngine = {
-  calculateNauticalDistance,
+  calculateHaversineKm,
   SEED_ISLANDS,
   generateSeedRoutes,
   dijkstra,
-  calculateRoutePath
+  calculateRoutePath,
+  integrateCustomLocation
 };

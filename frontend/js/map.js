@@ -1,8 +1,7 @@
 /**
- * The Pirate Navigation System - Leaflet Map Manager
- * Handles maritime chart rendering, custom SVG pirate markers,
- * route polylines (base, active gold course, hazards, naval patrols),
- * interactive click events, and route animations.
+ * The Pirate Navigation System - Mumbai Map Manager
+ * Handles OpenStreetMap rendering centered on Mumbai, custom SVG markers,
+ * route polylines in kilometers, map pin picking, and route animations.
  */
 
 class MapManager {
@@ -12,34 +11,34 @@ class MapManager {
     this.islandMarkers = {};
     this.routePolylines = {};
     this.activePathPolyline = null;
-    this.activePathHalo = null;
     this.departureMarkerId = null;
     this.destinationMarkerId = null;
+    this.tempPinMarker = null;
+    this.isPickingCoordinates = false;
+    this.onCoordPickedCallback = null;
 
     // Callbacks
-    this.onSelectIslandAsDeparture = null;
-    this.onSelectIslandAsDestination = null;
     this.onRouteClicked = null;
   }
 
   init() {
-    // Initial archipelago center coordinates
-    const initialCenter = [13.0, 77.0];
-    const initialZoom = 8;
+    // Mumbai center coordinates
+    const initialCenter = [19.0760, 72.8777];
+    const initialZoom = 11;
 
     this.map = L.map(this.containerId, {
       center: initialCenter,
       zoom: initialZoom,
-      minZoom: 6,
-      maxZoom: 12,
+      minZoom: 8,
+      maxZoom: 16,
       zoomControl: false,
       attributionControl: false
     });
 
-    // Custom Zoom control in bottom left
+    // Custom Zoom control
     L.control.zoom({ position: 'bottomleft' }).addTo(this.map);
 
-    // Free Open-Source Tile Layer (Zero API Key Required)
+    // Free Open-Source OpenStreetMap Tile Layer (NO API KEY REQUIRED)
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
@@ -51,11 +50,56 @@ class MapManager {
     this.hazardIconLayer = L.layerGroup().addTo(this.map);
     this.markerLayer = L.layerGroup().addTo(this.map);
 
+    // Map click for coordinate picking
+    this.map.on('click', e => {
+      if (this.isPickingCoordinates && this.onCoordPickedCallback) {
+        const lat = parseFloat(e.latlng.lat.toFixed(4));
+        const lng = parseFloat(e.latlng.lng.toFixed(4));
+        this.showTempPin(lat, lng);
+        this.onCoordPickedCallback(lat, lng);
+        this.disableMapClickForCoords();
+      }
+    });
+
     return this;
   }
 
+  enableMapClickForCoords(callback) {
+    this.isPickingCoordinates = true;
+    this.onCoordPickedCallback = callback;
+    const mapEl = document.getElementById(this.containerId);
+    if (mapEl) mapEl.style.cursor = 'crosshair';
+  }
+
+  disableMapClickForCoords() {
+    this.isPickingCoordinates = false;
+    this.onCoordPickedCallback = null;
+    const mapEl = document.getElementById(this.containerId);
+    if (mapEl) mapEl.style.cursor = '';
+  }
+
+  showTempPin(lat, lng) {
+    if (this.tempPinMarker) {
+      this.map.removeLayer(this.tempPinMarker);
+    }
+    const pinIcon = L.divIcon({
+      className: 'temp-pin-icon',
+      html: `<div style="background:#ffb703; border:2px solid #fff; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 15px #ffb703; font-size:12px;">📍</div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    this.tempPinMarker = L.marker([lat, lng], { icon: pinIcon }).addTo(this.map);
+  }
+
+  removeTempPin() {
+    if (this.tempPinMarker) {
+      this.map.removeLayer(this.tempPinMarker);
+      this.tempPinMarker = null;
+    }
+  }
+
   /**
-   * Render or update island markers
+   * Render or update Mumbai location markers
    */
   renderIslands(islands) {
     this.markerLayer.clearLayers();
@@ -64,12 +108,12 @@ class MapManager {
     islands.forEach(island => {
       const isDep = String(island._id) === String(this.departureMarkerId);
       const isDest = String(island._id) === String(this.destinationMarkerId);
+      const isCustom = Boolean(island.isCustom);
 
-      const customClass = isDep
-        ? 'island-marker-pin departure'
-        : isDest
-        ? 'island-marker-pin destination'
-        : 'island-marker-pin';
+      let customClass = 'island-marker-pin';
+      if (isDep) customClass += ' departure';
+      else if (isDest) customClass += ' destination';
+      if (isCustom) customClass += ' custom-node';
 
       const iconHtml = `
         <div class="${customClass}" id="marker-${island._id}">
@@ -79,12 +123,14 @@ class MapManager {
                 isDep
                   ? '<path d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 2.2L18 8v8.6l-6 3.7-6-3.7V8l6-3.8z"/>' // Ship/Compass
                   : isDest
-                  ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>' // Target/X
+                  ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>' // Target
+                  : isCustom
+                  ? '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>' // Star for Custom
                   : '<path d="M12 2a3 3 0 00-3 3c0 1.3.8 2.4 2 2.8V11H8v2h3v7h2v-7h3v-2h-3V7.8c1.2-.4 2-1.5 2-2.8a3 3 0 00-3-3z"/>' // Anchor
               }
             </svg>
           </div>
-          <div class="island-marker-label">${island.name}</div>
+          <div class="island-marker-label">${island.name}${isCustom ? ' ⭐' : ''}</div>
         </div>
       `;
 
@@ -97,13 +143,12 @@ class MapManager {
 
       const marker = L.marker([island.lat, island.lng], { icon: markerIcon });
 
-      // Interactive popup
       const popupContent = `
         <div style="padding: 10px; font-family: 'Inter', sans-serif;">
-          <div class="map-popup-header">${island.name}</div>
+          <div class="map-popup-header">${island.name} ${isCustom ? '(Custom Place)' : ''}</div>
           <div class="map-popup-desc">
-            <strong>Coords:</strong> ${island.lat}°N, ${island.lng}°E<br/>
-            ${island.type ? `<strong>Classification:</strong> ${island.type}` : ''}
+            <strong>Location:</strong> ${island.lat}°N, ${island.lng}°E<br/>
+            ${island.type ? `<strong>Corridor:</strong> ${island.type}` : ''}
           </div>
           <div class="map-popup-actions">
             <button class="btn btn-primary map-popup-btn" onclick="window.appCoordinator.setDeparture('${island._id}')">
@@ -122,9 +167,6 @@ class MapManager {
     });
   }
 
-  /**
-   * Set Highlight Roles for Departure & Destination
-   */
   setSelectedIslands(departureId, destinationId, islands) {
     this.departureMarkerId = departureId;
     this.destinationMarkerId = destinationId;
@@ -134,7 +176,7 @@ class MapManager {
   }
 
   /**
-   * Render Sea Routes
+   * Render Sea & Urban Routes
    */
   renderRoutes(routes, islands) {
     this.routeLayer.clearLayers();
@@ -159,11 +201,10 @@ class MapManager {
         [to.lat, to.lng]
       ];
 
-      // Base style
-      let color = 'rgba(212, 175, 55, 0.3)';
+      let color = 'rgba(212, 175, 55, 0.35)';
       let dashArray = '5, 8';
       let weight = 2.5;
-      let opacity = 0.6;
+      let opacity = 0.65;
 
       if (route.isHazard) {
         color = '#e63946';
@@ -177,7 +218,6 @@ class MapManager {
         opacity = 0.95;
       }
 
-      // Polyline
       const polyline = L.polyline(latlngs, {
         color,
         weight,
@@ -187,19 +227,12 @@ class MapManager {
         lineJoin: 'round'
       });
 
-      // Hover and Click interaction
       polyline.on('mouseover', () => {
-        polyline.setStyle({
-          weight: weight + 2,
-          opacity: 1
-        });
+        polyline.setStyle({ weight: weight + 2, opacity: 1 });
       });
 
       polyline.on('mouseout', () => {
-        polyline.setStyle({
-          weight,
-          opacity
-        });
+        polyline.setStyle({ weight, opacity });
       });
 
       polyline.on('click', () => {
@@ -208,22 +241,20 @@ class MapManager {
         }
       });
 
-      // Tooltip
       const hazardText = route.isHazard
-        ? '⚠️ DANGER: ACTIVE MARITIME HAZARD'
+        ? '⚠️ DANGER: MARITIME / ROAD HAZARD'
         : route.isPatrolZone
-        ? '⚔️ RESTRICTED: NAVAL PATROL BLOCKADE'
-        : '🌊 Open Sea Lane';
+        ? '⚔️ RESTRICTED: NAVAL / POLICE PATROL BLOCKADE'
+        : '🌊 Open Sea / Road Corridor';
 
       polyline.bindTooltip(
-        `<strong>${from.name} ⟷ ${to.name}</strong><br/>${route.distance} NM &bull; ${hazardText}<br/><em>Click sea lane to toggle hazard</em>`,
+        `<strong>${from.name} ⟷ ${to.name}</strong><br/>${route.distance} km &bull; ${hazardText}<br/><em>Click corridor to toggle hazard</em>`,
         { sticky: true, className: 'maritime-route-tooltip' }
       );
 
       this.routeLayer.addLayer(polyline);
       this.routePolylines[String(route._id)] = polyline;
 
-      // Add badge at midpoint for active hazards or patrol zones
       if (route.isHazard || route.isPatrolZone) {
         const midLat = (from.lat + to.lat) / 2;
         const midLng = (from.lng + to.lng) / 2;
@@ -287,22 +318,18 @@ class MapManager {
     this.activeRouteLayer.addLayer(halo);
     this.activeRouteLayer.addLayer(core);
 
-    // Zoom/pan to fit the active course
     this.map.fitBounds(L.latLngBounds(coords), {
-      padding: [60, 60],
-      maxZoom: 9,
+      padding: [50, 50],
+      maxZoom: 12,
       animate: true,
       duration: 0.8
     });
   }
 
-  /**
-   * Fit view to all archipelago islands
-   */
-  fitArchipelago(islands) {
+  fitMumbai(islands) {
     if (!islands || islands.length === 0) return;
     const bounds = L.latLngBounds(islands.map(i => [i.lat, i.lng]));
-    this.map.fitBounds(bounds, { padding: [50, 50], animate: true });
+    this.map.fitBounds(bounds, { padding: [40, 40], animate: true });
   }
 }
 

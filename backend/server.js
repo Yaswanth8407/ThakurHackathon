@@ -24,14 +24,29 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-mongoose.connect(MONGODB_URI)
+console.log(`[INIT] Connecting to MongoDB at ${MONGODB_URI}...`);
+mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 2000,
+  connectTimeoutMS: 2000
+})
   .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    console.log('[DB] Connected to MongoDB database successfully.');
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+    console.warn(`[DB] MongoDB offline (${err.message}). Using autonomous Mumbai in-memory storage.`);
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`
+============================================================
+      THE PIRATE NAVIGATION SYSTEM — MUMBAI EDITION
+============================================================
+  Server Port:      ${PORT}
+  API Endpoints:    http://localhost:${PORT}/api
+  Frontend App:     http://localhost:${PORT}/
+  Distance Units:   Kilometers (km)
+  Network Nodes:    Mumbai Corridors (Kurla, Thane, Colaba...)
+============================================================
+      `);
+    });
   });
