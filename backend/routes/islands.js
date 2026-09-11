@@ -46,6 +46,28 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.patch('/:id/hazard', async (req, res) => {
+  try {
+    const { hazardStatus } = req.body;
+    if (mongoose.connection.readyState !== 1) {
+      const updated = inMemoryDb.updateIslandHazard(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ error: 'Island not found' });
+      return res.json(updated);
+    }
+    const island = await Island.findByIdAndUpdate(
+      req.params.id,
+      { hazardStatus },
+      { new: true }
+    );
+    if (!island) return res.status(404).json({ error: 'Island not found' });
+    res.json(island);
+  } catch (err) {
+    const updated = inMemoryDb.updateIslandHazard(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ error: 'Island not found' });
+    res.json(updated);
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const island = await Island.findByIdAndDelete(req.params.id);

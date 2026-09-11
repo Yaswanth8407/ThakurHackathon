@@ -51,17 +51,30 @@ router.get('/', async (req, res) => {
         path: [],
         totalDistance: 0,
         estimatedTimeHours: 0,
-        message: 'No safe route found between these islands'
+        estimatedDaysAtSea: '0.0 days',
+        riskHazardFactor: '100% (Blocked)',
+        message: 'All viable routes are completely blocked! No safe sea passage found.'
       });
     }
 
-    const avgSpeed = req.query.speed ? Math.max(1, parseFloat(req.query.speed)) : 30;
-    const estimatedTimeHours = parseFloat((result.totalDistance / avgSpeed).toFixed(2));
+    const speedKnots = req.query.speed ? Math.max(1, parseFloat(req.query.speed)) : 10;
+    const estimatedTimeHours = parseFloat((result.totalDistance / speedKnots).toFixed(2));
+    const estimatedDaysAtSea = parseFloat((estimatedTimeHours / 24).toFixed(1));
 
     res.json({
       path: result.path,
-      totalDistance: parseFloat(result.totalDistance.toFixed(2)),
-      estimatedTimeHours
+      totalDistance: parseFloat(result.totalDistance.toFixed(1)),
+      speedKnots,
+      estimatedTimeHours,
+      estimatedDaysAtSea: `${estimatedDaysAtSea} days (${estimatedTimeHours} hrs)`,
+      riskHazardFactor: `${result.riskHazardFactor}%`,
+      isForcedBlocked: Boolean(result.isForcedBlocked),
+      legs: result.legs.map(l => ({
+        from: l.from,
+        to: l.to,
+        distance: l.distance,
+        hazardStatus: l.route?.hazardStatus || (l.route?.isPatrolZone ? 'Blocked' : l.route?.isHazard ? 'Storm-battered' : 'Clear')
+      }))
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

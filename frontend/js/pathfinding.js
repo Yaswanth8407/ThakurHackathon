@@ -1,13 +1,19 @@
 /**
- * The Pirate Navigation System - Mumbai Edition Pathfinding Engine
- * Implements Dijkstra shortest-path calculation, hazard avoidance penalties,
- * kilometer distances (Haversine), and dynamic custom place integration.
+ * The Pirate Navigation System - Lakshadweep Archipelago Pathfinding Engine
+ * Implements sub-second Dijkstra shortest-path calculations with dynamic multi-tier hazard classification:
+ * - Clear (1.0x)
+ * - Dangerous (2.5x penalty)
+ * - Storm-battered (5.0x penalty)
+ * - Blocked (Infinity / strictly impassable)
+ * 
+ * Supports both Strait hazards and Island/Atoll danger states.
+ * Computes Nautical Distance (NM), Knots, Estimated Days at Sea, and Risk Hazard Factor.
+ * Gracefully displays warning when all viable passages are blocked.
  */
 
-const HAZARD_PENALTY = 10;
-const EARTH_RADIUS_KM = 6371; // Earth radius in kilometers
+const NAUTICAL_MILE_RADIUS = 3440.065; // Earth radius in Nautical Miles
 
-function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+function calculateNauticalDistance(lat1, lon1, lat2, lon2) {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -17,53 +23,48 @@ function calculateHaversineKm(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(EARTH_RADIUS_KM * c * 10) / 10;
+  return Math.round(NAUTICAL_MILE_RADIUS * c * 10) / 10;
 }
 
-// 12 Core Mumbai Network Nodes
+// 12 Authentic Coral Atolls & Islands of Lakshadweep
 const SEED_ISLANDS = [
-  { _id: '65f000000000000000000001', name: 'Colaba', lat: 18.9067, lng: 72.8147, type: 'Port', isCustom: false },
-  { _id: '65f000000000000000000002', name: 'Marine Drive', lat: 18.9438, lng: 72.8232, type: 'Cove', isCustom: false },
-  { _id: '65f000000000000000000003', name: 'Dadar', lat: 19.0178, lng: 72.8478, type: 'Central Hub', isCustom: false },
-  { _id: '65f000000000000000000004', name: 'Bandra', lat: 19.0596, lng: 72.8295, type: 'Coastal Fortress', isCustom: false },
-  { _id: '65f000000000000000000005', name: 'Kurla', lat: 19.0726, lng: 72.8845, type: 'Transit Node', isCustom: false },
-  { _id: '65f000000000000000000006', name: 'Ghatkopar', lat: 19.0860, lng: 72.9090, type: 'East Corridor', isCustom: false },
-  { _id: '65f000000000000000000007', name: 'Andheri', lat: 19.1197, lng: 72.8464, type: 'West Corridor', isCustom: false },
-  { _id: '65f000000000000000000008', name: 'Borivali', lat: 19.2307, lng: 72.8567, type: 'North Gate', isCustom: false },
-  { _id: '65f000000000000000000009', name: 'Thane', lat: 19.2183, lng: 72.9781, type: 'Creek Harbour', isCustom: false },
-  { _id: '65f00000000000000000000a', name: 'Vashi', lat: 19.0771, lng: 72.9986, type: 'Navi Mumbai', isCustom: false },
-  { _id: '65f00000000000000000000b', name: 'Trombay', lat: 19.0160, lng: 72.9150, type: 'Harbour Node', isCustom: false },
-  { _id: '65f00000000000000000000c', name: 'Elephanta Island', lat: 18.9633, lng: 72.9315, type: 'Sea Fortress', isCustom: false }
+  { _id: '65f000000000000000000001', name: 'Kavaratti', lat: 10.5667, lng: 72.6417, type: 'Capital Port', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000002', name: 'Agatti', lat: 10.8533, lng: 72.1947, type: 'Lagoon Airstrip', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000003', name: 'Bangaram', lat: 10.9400, lng: 72.2900, type: 'Coral Atoll', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000004', name: 'Minicoy', lat: 8.2833, lng: 73.0500, type: 'Lighthouse Atoll', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000005', name: 'Kalpeni', lat: 10.0833, lng: 73.6500, type: 'Lagoon Atoll', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000006', name: 'Andrott', lat: 10.8167, lng: 73.6667, type: 'Eastern Isle', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000007', name: 'Amini', lat: 11.1242, lng: 72.7317, type: 'Historic Atoll', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000008', name: 'Kadmat', lat: 11.2333, lng: 72.7833, type: 'Barrier Reef', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f000000000000000000009', name: 'Kiltan', lat: 11.4833, lng: 73.0000, type: 'Northern Port', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f00000000000000000000a', name: 'Chetlat', lat: 11.6833, lng: 72.7000, type: 'Northern Atoll', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f00000000000000000000b', name: 'Bitra', lat: 11.6000, lng: 72.1833, type: 'Western Lagoon', hazardStatus: 'Clear', isCustom: false },
+  { _id: '65f00000000000000000000c', name: 'Suheli Par', lat: 10.0833, lng: 72.2833, type: 'Fishing Reef', hazardStatus: 'Clear', isCustom: false }
 ];
 
 const SEED_ROUTE_DEFS = [
-  { from: 'Colaba', to: 'Marine Drive', distance: 4.5 },
-  { from: 'Colaba', to: 'Elephanta Island', distance: 11.2 },
-  { from: 'Marine Drive', to: 'Dadar', distance: 9.2 },
-  { from: 'Dadar', to: 'Bandra', distance: 5.1 },
-  { from: 'Dadar', to: 'Kurla', distance: 7.3 },
-  { from: 'Bandra', to: 'Kurla', distance: 6.8 },
-  { from: 'Bandra', to: 'Andheri', distance: 8.4 },
-  { from: 'Kurla', to: 'Ghatkopar', distance: 4.2 },
-  { from: 'Kurla', to: 'Andheri', distance: 8.1 },
-  { from: 'Kurla', to: 'Trombay', distance: 7.5 },
-  { from: 'Trombay', to: 'Elephanta Island', distance: 7.2 },
-  { from: 'Trombay', to: 'Vashi', distance: 12.5 },
-  { from: 'Ghatkopar', to: 'Vashi', distance: 14.0 },
-  { from: 'Ghatkopar', to: 'Thane', distance: 16.5 },
-  { from: 'Andheri', to: 'Borivali', distance: 13.8 },
-  { from: 'Borivali', to: 'Thane', distance: 18.2 },
-  { from: 'Thane', to: 'Vashi', distance: 15.5 },
-  { from: 'Andheri', to: 'Ghatkopar', distance: 7.8 },
-  { from: 'Colaba', to: 'Dadar', distance: 13.5 },
-  { from: 'Dadar', to: 'Trombay', distance: 11.0 }
+  { from: 'Agatti', to: 'Bangaram', distance: 7.2 },
+  { from: 'Agatti', to: 'Kavaratti', distance: 32.4 },
+  { from: 'Bangaram', to: 'Amini', distance: 28.5 },
+  { from: 'Amini', to: 'Kadmat', distance: 7.1 },
+  { from: 'Kadmat', to: 'Kiltan', distance: 20.3 },
+  { from: 'Kiltan', to: 'Chetlat', distance: 21.6 },
+  { from: 'Chetlat', to: 'Bitra', distance: 31.0 },
+  { from: 'Bitra', to: 'Bangaram', distance: 40.2 },
+  { from: 'Amini', to: 'Kavaratti', distance: 34.0 },
+  { from: 'Kadmat', to: 'Andrott', distance: 57.2 },
+  { from: 'Kavaratti', to: 'Andrott', distance: 62.1 },
+  { from: 'Andrott', to: 'Kalpeni', distance: 44.0 },
+  { from: 'Kavaratti', to: 'Kalpeni', distance: 67.4 },
+  { from: 'Kavaratti', to: 'Suheli Par', distance: 35.8 },
+  { from: 'Suheli Par', to: 'Minicoy', distance: 118.2 },
+  { from: 'Kalpeni', to: 'Minicoy', distance: 114.5 },
+  { from: 'Kavaratti', to: 'Minicoy', distance: 139.0 }
 ];
 
 function generateSeedRoutes(islands) {
   const nameToIsland = {};
-  islands.forEach(i => {
-    nameToIsland[i.name] = i;
-  });
+  islands.forEach(i => (nameToIsland[i.name] = i));
 
   return SEED_ROUTE_DEFS.map((def, idx) => {
     const from = nameToIsland[def.from];
@@ -75,34 +76,74 @@ function generateSeedRoutes(islands) {
       fromIsland: from,
       toIsland: to,
       distance: def.distance,
-      speed: 30,
+      speed: 10,
+      hazardStatus: 'Clear', // 'Clear' | 'Dangerous' | 'Storm-battered' | 'Blocked'
       isHazard: false,
       isPatrolZone: false
     };
   });
 }
 
+const MULTI_TIER_PENALTIES = {
+  'Clear': 1.0,
+  'Dangerous': 2.5,
+  'Storm-battered': 5.0,
+  'Blocked': Infinity
+};
+
+function getRouteWeight(route, fromIsland, toIsland) {
+  const straitStatus = route.hazardStatus ||
+    (route.isPatrolZone ? 'Blocked' : route.isHazard ? 'Storm-battered' : 'Clear');
+
+  if (straitStatus === 'Blocked') {
+    return Infinity;
+  }
+
+  if (fromIsland?.hazardStatus === 'Blocked' || toIsland?.hazardStatus === 'Blocked') {
+    return Infinity;
+  }
+
+  const straitMult = MULTI_TIER_PENALTIES[straitStatus] || 1.0;
+  const toIslandMult = MULTI_TIER_PENALTIES[toIsland?.hazardStatus] || 1.0;
+  const fromIslandMult = MULTI_TIER_PENALTIES[fromIsland?.hazardStatus] || 1.0;
+
+  const combinedMultiplier = straitMult * Math.max(toIslandMult, fromIslandMult);
+  return route.distance * combinedMultiplier;
+}
+
 /**
- * Dijkstra Pathfinding Algorithm
+ * Core Dijkstra Shortest Path Calculation
  */
-function dijkstra(islands, routes, fromId, toId) {
+function dijkstraCore(islands, routes, fromId, toId) {
+  const islandMap = {};
   const graph = {};
 
   islands.forEach(island => {
-    graph[island._id.toString()] = [];
+    const id = island._id.toString();
+    islandMap[id] = island;
+    graph[id] = [];
   });
 
+  const depIsland = islandMap[fromId];
+  const destIsland = islandMap[toId];
+
+  // If departure or destination is blocked, return null immediately
+  if (depIsland?.hazardStatus === 'Blocked' || destIsland?.hazardStatus === 'Blocked') {
+    return null;
+  }
+
   routes.forEach(route => {
-    const from = (route.fromIsland._id || route.fromIsland).toString();
-    const to = (route.toIsland._id || route.toIsland).toString();
-    let weight = route.distance;
+    const from = (route.fromIsland?._id || route.fromIsland).toString();
+    const to = (route.toIsland?._id || route.toIsland).toString();
+    const fromIsl = islandMap[from];
+    const toIsl = islandMap[to];
 
-    if (route.isHazard || route.isPatrolZone) {
-      weight *= HAZARD_PENALTY;
+    const weight = getRouteWeight(route, fromIsl, toIsl);
+
+    if (weight !== Infinity) {
+      if (graph[from]) graph[from].push({ node: to, weight, originalDistance: route.distance, route });
+      if (graph[to]) graph[to].push({ node: from, weight, originalDistance: route.distance, route });
     }
-
-    if (graph[from]) graph[from].push({ node: to, weight, originalDistance: route.distance, route });
-    if (graph[to]) graph[to].push({ node: from, weight, originalDistance: route.distance, route });
   });
 
   const distances = {};
@@ -173,16 +214,16 @@ function dijkstra(islands, routes, fromId, toId) {
   return {
     path,
     legs,
-    totalDistance: parseFloat(totalPhysicalDistance.toFixed(2)),
-    weightedDistance: parseFloat(distances[toId].toFixed(2))
+    totalDistance: parseFloat(totalPhysicalDistance.toFixed(1)),
+    weightedDistance: parseFloat(distances[toId].toFixed(1))
   };
 }
 
 /**
- * High-level Path Calculation with Detour Detection
+ * High-level Path Calculation with Days at Sea and Risk Hazard Factor
  */
-function calculateRoutePath(islands, routes, fromId, toId, speedKmH = 30) {
-  const speed = Number(speedKmH) > 0 ? Number(speedKmH) : 30;
+function calculateRoutePath(islands, routes, fromId, toId, speedKnots = 10) {
+  const speed = Number(speedKnots) > 0 ? Number(speedKnots) : 10;
   const fromStr = String(fromId);
   const toStr = String(toId);
 
@@ -192,7 +233,7 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKmH = 30) {
   });
 
   if (!islandMap[fromStr] || !islandMap[toStr]) {
-    throw new Error('Departure or destination not found in Mumbai network');
+    throw new Error('Departure or destination atoll not found in Lakshadweep archipelago.');
   }
 
   if (fromStr === toStr) {
@@ -201,110 +242,161 @@ function calculateRoutePath(islands, routes, fromId, toId, speedKmH = 30) {
       islandDetails: [islandMap[fromStr]],
       totalDistance: 0,
       estimatedTimeHours: 0,
+      estimatedDaysAtSea: '0.0 days',
+      riskHazardFactor: '0% (Calm Lagoon)',
+      riskPercentage: 0,
       legs: [],
       isRerouted: false,
-      hazardsAvoided: 0
+      hazardsAvoided: 0,
+      isForcedBlocked: false
     };
   }
 
-  // Clean baseline
-  const cleanRoutes = routes.map(r => ({ ...r, isHazard: false, isPatrolZone: false }));
-  const baselineResult = dijkstra(islands, cleanRoutes, fromStr, toStr);
+  // Clean baseline route (calm seas) for detour comparison
+  const cleanIslands = islands.map(i => ({ ...i, hazardStatus: 'Clear' }));
+  const cleanRoutes = routes.map(r => ({ ...r, hazardStatus: 'Clear', isHazard: false, isPatrolZone: false }));
+  const baselineResult = dijkstraCore(cleanIslands, cleanRoutes, fromStr, toStr);
 
-  // Active path
-  const activeResult = dijkstra(islands, routes, fromStr, toStr);
+  // Active path attempt strictly excluding Blocked passages & islands
+  const activeResult = dijkstraCore(islands, routes, fromStr, toStr);
 
+  // Gracefully handle complete blockage
   if (!activeResult) {
     return {
       path: [],
       islandDetails: [],
       totalDistance: 0,
       estimatedTimeHours: 0,
+      estimatedDaysAtSea: '0.0 days',
+      riskHazardFactor: '100% (Blocked)',
+      riskPercentage: 100,
       legs: [],
       isRerouted: false,
       hazardsAvoided: 0,
-      message: 'No safe route found between these Mumbai locations'
+      isForcedBlocked: false,
+      message: 'All viable routes are completely blocked! No safe sea passage found.'
     };
   }
 
-  // Detect if route was rerouted
+  // Calculate Risk Hazard Factor (0% to 100%)
+  let totalHazardScore = 0;
+  activeResult.legs.forEach(l => {
+    const status = l.route?.hazardStatus ||
+      (l.route?.isPatrolZone ? 'Blocked' : l.route?.isHazard ? 'Storm-battered' : 'Clear');
+    if (status === 'Dangerous') totalHazardScore += 25;
+    else if (status === 'Storm-battered') totalHazardScore += 50;
+    else if (status === 'Blocked') totalHazardScore += 100;
+  });
+
+  // Factor in intermediate island danger states
+  activeResult.path.forEach(nodeId => {
+    const isl = islandMap[nodeId];
+    if (isl?.hazardStatus === 'Dangerous') totalHazardScore += 25;
+    else if (isl?.hazardStatus === 'Storm-battered') totalHazardScore += 50;
+    else if (isl?.hazardStatus === 'Blocked') totalHazardScore += 100;
+  });
+
+  const totalElements = Math.max(1, activeResult.legs.length + activeResult.path.length);
+  const maxPossible = totalElements * 50;
+  const riskPercentage = Math.min(100, Math.round((totalHazardScore / maxPossible) * 100));
+
+  let riskDescription = 'Low Risk (Calm Waters)';
+  if (riskPercentage >= 50) riskDescription = 'High Risk (Storm-battered Seas)';
+  else if (riskPercentage > 0) riskDescription = 'Moderate Risk (Dangerous Shoals)';
+
+  // Calculate Days at Sea
+  const estimatedTimeHours = parseFloat((activeResult.totalDistance / speed).toFixed(2));
+  const daysAtSea = parseFloat((estimatedTimeHours / 24).toFixed(1));
+  const estimatedDaysAtSea = `${daysAtSea} days (${estimatedTimeHours} hrs)`;
+
+  // Check if active path took a detour around a hazard compared to baseline
   let isRerouted = false;
   let hazardsAvoided = 0;
-
   if (baselineResult && baselineResult.path.length > 0) {
-    baselineResult.legs.forEach(leg => {
+    baselineResult.legs.forEach(bLeg => {
       const match = routes.find(r => {
-        const rf = String(r.fromIsland._id || r.fromIsland);
-        const rt = String(r.toIsland._id || r.toIsland);
-        return (rf === leg.from && rt === leg.to) || (rf === leg.to && rt === leg.from);
+        const rf = String(r.fromIsland?._id || r.fromIsland);
+        const rt = String(r.toIsland?._id || r.toIsland);
+        return (rf === bLeg.from && rt === bLeg.to) || (rf === bLeg.to && rt === bLeg.from);
       });
-      if (match && (match.isHazard || match.isPatrolZone)) {
+      const bStatus = match?.hazardStatus || (match?.isPatrolZone ? 'Blocked' : match?.isHazard ? 'Storm-battered' : 'Clear');
+      if (bStatus !== 'Clear') {
+        isRerouted = true;
+        hazardsAvoided++;
+      }
+    });
+
+    baselineResult.path.forEach(nodeId => {
+      const isl = islandMap[nodeId];
+      if (isl && isl.hazardStatus && isl.hazardStatus !== 'Clear') {
         isRerouted = true;
         hazardsAvoided++;
       }
     });
   }
 
-  const estimatedTimeHours = parseFloat((activeResult.totalDistance / speed).toFixed(2));
-
   return {
     path: activeResult.path,
     islandDetails: activeResult.path.map(id => islandMap[id]),
     totalDistance: activeResult.totalDistance,
+    speedKnots: speed,
     estimatedTimeHours,
-    speedKmH: speed,
-    legs: activeResult.legs.map(leg => ({
-      from: leg.from,
-      to: leg.to,
-      fromName: islandMap[leg.from]?.name || 'Unknown',
-      toName: islandMap[leg.to]?.name || 'Unknown',
-      distance: leg.distance,
-      isHazard: Boolean(leg.route?.isHazard),
-      isPatrolZone: Boolean(leg.route?.isPatrolZone)
-    })),
+    estimatedDaysAtSea,
+    riskHazardFactor: `${riskPercentage}% (${riskDescription})`,
+    riskPercentage,
+    isForcedBlocked: false,
     isRerouted,
-    hazardsAvoided
+    hazardsAvoided,
+    legs: activeResult.legs.map(leg => {
+      const status = leg.route?.hazardStatus ||
+        (leg.route?.isPatrolZone ? 'Blocked' : leg.route?.isHazard ? 'Storm-battered' : 'Clear');
+      return {
+        from: leg.from,
+        to: leg.to,
+        fromName: islandMap[leg.from]?.name || 'Atoll',
+        toName: islandMap[leg.to]?.name || 'Atoll',
+        distance: leg.distance,
+        hazardStatus: status
+      };
+    })
   };
 }
 
 /**
- * Connect a custom place to the nearest 2 nodes in the Mumbai network
+ * Connect a custom anchorage/waypoint to nearest atolls in Lakshadweep
  */
 function integrateCustomLocation(customPlace, existingIslands) {
-  // Sort existing nodes by distance to the new custom location
   const candidates = existingIslands
     .filter(i => String(i._id) !== String(customPlace._id))
     .map(i => ({
       island: i,
-      distance: calculateHaversineKm(customPlace.lat, customPlace.lng, i.lat, i.lng)
+      distance: calculateNauticalDistance(customPlace.lat, customPlace.lng, i.lat, i.lng)
     }))
     .sort((a, b) => a.distance - b.distance);
 
-  // Take the 2 closest nodes
   const nearest = candidates.slice(0, 2);
 
-  const newRoutes = nearest.map((cand, idx) => {
+  return nearest.map((cand, idx) => {
     const hex = (9000 + Math.floor(Math.random() * 9000) + idx).toString(16).padStart(24, '0');
     return {
       _id: hex,
       fromIsland: customPlace,
       toIsland: cand.island,
       distance: cand.distance,
-      speed: 30,
+      speed: 10,
+      hazardStatus: 'Clear',
       isHazard: false,
       isPatrolZone: false
     };
   });
-
-  return newRoutes;
 }
 
-// Export for browser
+// Global browser export
 window.PathfindingEngine = {
-  calculateHaversineKm,
+  calculateNauticalDistance,
   SEED_ISLANDS,
   generateSeedRoutes,
-  dijkstra,
+  dijkstraCore,
   calculateRoutePath,
   integrateCustomLocation
 };

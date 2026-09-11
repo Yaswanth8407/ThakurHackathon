@@ -1,7 +1,7 @@
 /**
- * The Pirate Navigation System - Mumbai Edition API Client
- * Connects frontend and backend (/api/islands, /api/routes, /api/routes/:id/hazard, /api/path).
- * Also handles creating custom places via POST /api/islands and POST /api/routes.
+ * The Pirate Navigation System - Lakshadweep API Client
+ * Connects frontend and backend (/api/islands, /api/routes, /api/routes/:id/hazard, /api/islands/:id/hazard, /api/path).
+ * Features dynamic multi-tier hazard toggling for both islands and straits with sub-second recalculation.
  */
 
 const API_BASE = window.location.origin.includes('http')
@@ -25,11 +25,11 @@ const ApiService = {
   },
 
   /**
-   * Fetch all islands / Mumbai locations
+   * Fetch all islands / atolls
    */
   async getIslands() {
     try {
-      const res = await fetch(`${API_BASE}/islands`, { signal: AbortSignal.timeout(2500) });
+      const res = await fetch(`${API_BASE}/islands`, { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -46,11 +46,11 @@ const ApiService = {
   },
 
   /**
-   * Fetch all sea routes / corridors
+   * Fetch all sea routes / straits
    */
   async getRoutes() {
     try {
-      const res = await fetch(`${API_BASE}/routes`, { signal: AbortSignal.timeout(2500) });
+      const res = await fetch(`${API_BASE}/routes`, { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -67,25 +67,29 @@ const ApiService = {
   },
 
   /**
-   * Update Hazard or Patrol Zone on a route
-   * PATCH /api/routes/:id/hazard
+   * Update Hazard Classification on a route/strait
+   * status: 'Clear' | 'Dangerous' | 'Storm-battered' | 'Blocked'
    */
-  async toggleHazard(routeId, { isHazard, isPatrolZone }) {
+  async setRouteHazard(routeId, hazardStatus) {
     const strId = String(routeId);
+    const isHazard = hazardStatus === 'Dangerous' || hazardStatus === 'Storm-battered';
+    const isPatrolZone = hazardStatus === 'Blocked';
 
     try {
       const res = await fetch(`${API_BASE}/routes/${strId}/hazard`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isHazard, isPatrolZone }),
-        signal: AbortSignal.timeout(2500)
+        body: JSON.stringify({ hazardStatus, isHazard, isPatrolZone }),
+        signal: AbortSignal.timeout(2000)
       });
       if (res.ok) {
         const updated = await res.json();
         const idx = localRoutes.findIndex(r => String(r._id) === strId);
-        if (idx !== -1) localRoutes[idx] = updated;
+        if (idx !== -1) {
+          localRoutes[idx] = { ...localRoutes[idx], ...updated, hazardStatus };
+        }
         isBackendLive = true;
-        return updated;
+        return localRoutes[idx] || updated;
       }
     } catch (e) {
       // Fallback
@@ -93,74 +97,140 @@ const ApiService = {
 
     const idx = localRoutes.findIndex(r => String(r._id) === strId);
     if (idx !== -1) {
-      if (typeof isHazard === 'boolean') localRoutes[idx].isHazard = isHazard;
-      if (typeof isPatrolZone === 'boolean') localRoutes[idx].isPatrolZone = isPatrolZone;
+      localRoutes[idx].hazardStatus = hazardStatus;
+      localRoutes[idx].isHazard = isHazard;
+      localRoutes[idx].isPatrolZone = isPatrolZone;
       return localRoutes[idx];
     }
     return null;
   },
 
   /**
-   * Calculate Shortest Path in Kilometers
-   * GET /api/path?from=<id>&to=<id>&speed=<kmh>
+   * Update Danger State on an island/atoll
+   * status: 'Clear' | 'Dangerous' | 'Storm-battered' | 'Blocked'
    */
-  async calculatePath(fromId, toId, speedKmH = 30) {
-    const fromStr = String(fromId);
-    const toStr = String(toId);
-
+  async setIslandHazard(islandId, hazardStatus) {
+    const strId = String(islandId);
     try {
-      const url = `${API_BASE}/path?from=${encodeURIComponent(fromStr)}&to=${encodeURIComponent(toStr)}&speed=${encodeURIComponent(speedKmH)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${API_BASE}/islands/${strId}/hazard`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hazardStatus }),
+        signal: AbortSignal.timeout(2000)
+      });
       if (res.ok) {
-        const backendResult = await res.json();
-        if (backendResult && backendResult.path) {
-          isBackendLive = true;
-
-          const clientCalculation = window.PathfindingEngine.calculateRoutePath(
-            localIslands,
-            localRoutes,
-            fromStr,
-            toStr,
-            speedKmH
-          );
-
-          return {
-            ...backendResult,
-            speedKmH,
-            estimatedTimeHours: parseFloat((backendResult.totalDistance / speedKmH).toFixed(2)),
-            legs: clientCalculation.legs,
-            isRerouted: clientCalculation.isRerouted,
-            hazardsAvoided: clientCalculation.hazardsAvoided
-          };
+        const updated = await res.json();
+        const idx = localIslands.findIndex(i => String(i._id) === strId);
+        if (idx !== -1) {
+          localIslands[idx] = { ...localIslands[idx], ...updated, hazardStatus };
         }
+        isBackendLive = true;
+        return localIslands[idx] || updated;
       }
     } catch (e) {
       // Fallback
     }
 
-    isBackendLive = false;
-    return window.PathfindingEngine.calculateRoutePath(
+    const idx = localIslands.findIndex(i => String(i._id) === strId);
+    if (idx !== -1) {
+      localIslands[idx].hazardStatus = hazardStatus;
+      return localIslands[idx];
+    }
+    return null;
+  },
+
+  /**
+   * Calculate Shortest Safe Path
+   * GET /api/path?from=<id>&to=<id>&speed=<knots>
+   */
+  async calculatePath(fromId, toId, speedKnots = 10) {
+    const fromStr = String(fromId);
+    const toStr = String(toId);
+
+    // Fast sub-second client calculation
+    const clientCalculation = window.PathfindingEngine.calculateRoutePath(
       localIslands,
       localRoutes,
       fromStr,
       toStr,
-      speedKmH
+      speedKnots
     );
+
+    // If completely blocked according to active state, return graceful warning immediately
+    if (!clientCalculation.path || clientCalculation.path.length === 0) {
+      return {
+        path: [],
+        totalDistance: 0,
+        estimatedTimeHours: 0,
+        estimatedDaysAtSea: '0.0 days',
+        riskHazardFactor: '100% (Blocked)',
+        riskPercentage: 100,
+        legs: [],
+        isRerouted: false,
+        hazardsAvoided: 0,
+        isForcedBlocked: false,
+        message: clientCalculation.message || 'All viable routes are completely blocked! No safe sea passage found.'
+      };
+    }
+
+    try {
+      const url = `${API_BASE}/path?from=${encodeURIComponent(fromStr)}&to=${encodeURIComponent(toStr)}&speed=${encodeURIComponent(speedKnots)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
+      if (res.ok) {
+        const backendResult = await res.json();
+        if (backendResult && backendResult.path) {
+          isBackendLive = true;
+
+          if (backendResult.path.length === 0) {
+            return {
+              path: [],
+              totalDistance: 0,
+              estimatedTimeHours: 0,
+              estimatedDaysAtSea: '0.0 days',
+              riskHazardFactor: '100% (Blocked)',
+              riskPercentage: 100,
+              legs: [],
+              isRerouted: false,
+              hazardsAvoided: 0,
+              isForcedBlocked: false,
+              message: backendResult.message || 'All viable routes are completely blocked! No safe sea passage found.'
+            };
+          }
+
+          return {
+            ...backendResult,
+            speedKnots,
+            estimatedTimeHours: clientCalculation.estimatedTimeHours,
+            estimatedDaysAtSea: clientCalculation.estimatedDaysAtSea,
+            riskHazardFactor: clientCalculation.riskHazardFactor,
+            riskPercentage: clientCalculation.riskPercentage,
+            legs: clientCalculation.legs,
+            isRerouted: clientCalculation.isRerouted,
+            hazardsAvoided: clientCalculation.hazardsAvoided,
+            isForcedBlocked: false
+          };
+        }
+      }
+    } catch (e) {
+      // Fallback to client calculation
+    }
+
+    isBackendLive = false;
+    return clientCalculation;
   },
 
   /**
-   * Create a Custom Place and connect to nearest nodes
+   * Create a Custom Anchorage / Waypoint
    */
   async createCustomPlace(name, lat, lng) {
     let createdPlace = null;
 
-    // 1. Post new island/place
     try {
       const res = await fetch(`${API_BASE}/islands`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, lat: Number(lat), lng: Number(lng) }),
-        signal: AbortSignal.timeout(2500)
+        body: JSON.stringify({ name, lat: Number(lat), lng: Number(lng), hazardStatus: 'Clear' }),
+        signal: AbortSignal.timeout(2000)
       });
       if (res.ok) {
         createdPlace = await res.json();
@@ -176,6 +246,8 @@ const ApiService = {
         name,
         lat: Number(lat),
         lng: Number(lng),
+        type: 'Custom Anchorage',
+        hazardStatus: 'Clear',
         isCustom: true
       };
     }
@@ -183,7 +255,6 @@ const ApiService = {
     createdPlace.isCustom = true;
     localIslands.push(createdPlace);
 
-    // 2. Connect to 2 nearest nodes
     const connectingRoutes = window.PathfindingEngine.integrateCustomLocation(createdPlace, localIslands);
 
     for (const cr of connectingRoutes) {
@@ -195,9 +266,10 @@ const ApiService = {
             fromIsland: cr.fromIsland._id,
             toIsland: cr.toIsland._id,
             distance: cr.distance,
-            speed: 30
+            speed: 10,
+            hazardStatus: 'Clear'
           }),
-          signal: AbortSignal.timeout(2000)
+          signal: AbortSignal.timeout(1500)
         });
         if (rRes.ok) {
           const savedR = await rRes.json();
@@ -214,25 +286,27 @@ const ApiService = {
   },
 
   /**
-   * Reset all hazards
+   * Reset all straits and islands to Clear state
    */
   async resetBaseline() {
     localRoutes.forEach(r => {
+      r.hazardStatus = 'Clear';
       r.isHazard = false;
       r.isPatrolZone = false;
     });
 
-    for (const r of localRoutes) {
-      try {
-        await fetch(`${API_BASE}/routes/${r._id}/hazard`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isHazard: false, isPatrolZone: false }),
-          signal: AbortSignal.timeout(500)
-        });
-      } catch (e) {
-        break;
-      }
+    localIslands.forEach(i => {
+      i.hazardStatus = 'Clear';
+    });
+
+    try {
+      await fetch(`${API_BASE}/routes/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(2000)
+      });
+    } catch (e) {
+      // ignore
     }
 
     return { success: true };

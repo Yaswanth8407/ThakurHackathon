@@ -1,10 +1,11 @@
 /**
- * The Pirate Navigation System - Mumbai In-Memory Store
- * Used when MongoDB is offline to ensure 100% server uptime and zero demo failure.
+ * The Pirate Navigation System - Lakshadweep In-Memory Store
+ * Ensures 100% backend uptime and sub-second Dijkstra calculations.
  */
 
-function calculateHaversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth radius in km
+const NAUTICAL_MILE_RADIUS = 3440.065; // Earth radius in Nautical Miles
+
+function calculateNauticalMiles(lat1, lon1, lat2, lon2) {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -14,56 +15,53 @@ function calculateHaversineKm(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c * 10) / 10;
+  return Math.round(NAUTICAL_MILE_RADIUS * c * 10) / 10;
 }
 
-const DEFAULT_MUMBAI_ISLANDS = [
-  { _id: '65f000000000000000000001', name: 'Colaba', lat: 18.9067, lng: 72.8147 },
-  { _id: '65f000000000000000000002', name: 'Marine Drive', lat: 18.9438, lng: 72.8232 },
-  { _id: '65f000000000000000000003', name: 'Dadar', lat: 19.0178, lng: 72.8478 },
-  { _id: '65f000000000000000000004', name: 'Bandra', lat: 19.0596, lng: 72.8295 },
-  { _id: '65f000000000000000000005', name: 'Kurla', lat: 19.0726, lng: 72.8845 },
-  { _id: '65f000000000000000000006', name: 'Ghatkopar', lat: 19.0860, lng: 72.9090 },
-  { _id: '65f000000000000000000007', name: 'Andheri', lat: 19.1197, lng: 72.8464 },
-  { _id: '65f000000000000000000008', name: 'Borivali', lat: 19.2307, lng: 72.8567 },
-  { _id: '65f000000000000000000009', name: 'Thane', lat: 19.2183, lng: 72.9781 },
-  { _id: '65f00000000000000000000a', name: 'Vashi', lat: 19.0771, lng: 72.9986 },
-  { _id: '65f00000000000000000000b', name: 'Trombay', lat: 19.0160, lng: 72.9150 },
-  { _id: '65f00000000000000000000c', name: 'Elephanta Island', lat: 18.9633, lng: 72.9315 }
+const DEFAULT_LAKSHADWEEP_ISLANDS = [
+  { _id: '65f000000000000000000001', name: 'Kavaratti', lat: 10.5667, lng: 72.6417, type: 'Capital Port', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000002', name: 'Agatti', lat: 10.8533, lng: 72.1947, type: 'Lagoon Airstrip', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000003', name: 'Bangaram', lat: 10.9400, lng: 72.2900, type: 'Coral Atoll', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000004', name: 'Minicoy', lat: 8.2833, lng: 73.0500, type: 'Lighthouse Atoll', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000005', name: 'Kalpeni', lat: 10.0833, lng: 73.6500, type: 'Lagoon Atoll', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000006', name: 'Andrott', lat: 10.8167, lng: 73.6667, type: 'Eastern Isle', hazardStatus: 'Clear' },
+  { _id: '65f000000000000000000007', name: 'Amini', lat: 11.1242, lng: 72.7317, type: 'Historic Atoll', hazardStatus: 'Clear' },
+  { _id: '65f00000000000000000008', name: 'Kadmat', lat: 11.2333, lng: 72.7833, type: 'Barrier Reef', hazardStatus: 'Clear' },
+  { _id: '65f00000000000000000009', name: 'Kiltan', lat: 11.4833, lng: 73.0000, type: 'Northern Port', hazardStatus: 'Clear' },
+  { _id: '65f0000000000000000000a', name: 'Chetlat', lat: 11.6833, lng: 72.7000, type: 'Northern Atoll', hazardStatus: 'Clear' },
+  { _id: '65f0000000000000000000b', name: 'Bitra', lat: 11.6000, lng: 72.1833, type: 'Western Lagoon', hazardStatus: 'Clear' },
+  { _id: '65f0000000000000000000c', name: 'Suheli Par', lat: 10.0833, lng: 72.2833, type: 'Fishing Reef', hazardStatus: 'Clear' }
 ];
 
-const DEFAULT_MUMBAI_ROUTE_DEFS = [
-  { from: 'Colaba', to: 'Marine Drive', distance: 4.5 },
-  { from: 'Colaba', to: 'Elephanta Island', distance: 11.2 },
-  { from: 'Marine Drive', to: 'Dadar', distance: 9.2 },
-  { from: 'Dadar', to: 'Bandra', distance: 5.1 },
-  { from: 'Dadar', to: 'Kurla', distance: 7.3 },
-  { from: 'Bandra', to: 'Kurla', distance: 6.8 },
-  { from: 'Bandra', to: 'Andheri', distance: 8.4 },
-  { from: 'Kurla', to: 'Ghatkopar', distance: 4.2 },
-  { from: 'Kurla', to: 'Andheri', distance: 8.1 },
-  { from: 'Kurla', to: 'Trombay', distance: 7.5 },
-  { from: 'Trombay', to: 'Elephanta Island', distance: 7.2 },
-  { from: 'Trombay', to: 'Vashi', distance: 12.5 },
-  { from: 'Ghatkopar', to: 'Vashi', distance: 14.0 },
-  { from: 'Ghatkopar', to: 'Thane', distance: 16.5 },
-  { from: 'Andheri', to: 'Borivali', distance: 13.8 },
-  { from: 'Borivali', to: 'Thane', distance: 18.2 },
-  { from: 'Thane', to: 'Vashi', distance: 15.5 },
-  { from: 'Andheri', to: 'Ghatkopar', distance: 7.8 },
-  { from: 'Colaba', to: 'Dadar', distance: 13.5 },
-  { from: 'Dadar', to: 'Trombay', distance: 11.0 }
+const DEFAULT_LAKSHADWEEP_ROUTES = [
+  { from: 'Agatti', to: 'Bangaram', distance: 7.2 },
+  { from: 'Agatti', to: 'Kavaratti', distance: 32.4 },
+  { from: 'Bangaram', to: 'Amini', distance: 28.5 },
+  { from: 'Amini', to: 'Kadmat', distance: 7.1 },
+  { from: 'Kadmat', to: 'Kiltan', distance: 20.3 },
+  { from: 'Kiltan', to: 'Chetlat', distance: 21.6 },
+  { from: 'Chetlat', to: 'Bitra', distance: 31.0 },
+  { from: 'Bitra', to: 'Bangaram', distance: 40.2 },
+  { from: 'Amini', to: 'Kavaratti', distance: 34.0 },
+  { from: 'Kadmat', to: 'Andrott', distance: 57.2 },
+  { from: 'Kavaratti', to: 'Andrott', distance: 62.1 },
+  { from: 'Andrott', to: 'Kalpeni', distance: 44.0 },
+  { from: 'Kavaratti', to: 'Kalpeni', distance: 67.4 },
+  { from: 'Kavaratti', to: 'Suheli Par', distance: 35.8 },
+  { from: 'Suheli Par', to: 'Minicoy', distance: 118.2 },
+  { from: 'Kalpeni', to: 'Minicoy', distance: 114.5 },
+  { from: 'Kavaratti', to: 'Minicoy', distance: 139.0 }
 ];
 
 let memIslands = [];
 let memRoutes = [];
 
 function resetInMemory() {
-  memIslands = JSON.parse(JSON.stringify(DEFAULT_MUMBAI_ISLANDS));
+  memIslands = JSON.parse(JSON.stringify(DEFAULT_LAKSHADWEEP_ISLANDS));
   const islandMap = {};
   memIslands.forEach(i => (islandMap[i.name] = i));
 
-  memRoutes = DEFAULT_MUMBAI_ROUTE_DEFS.map((def, idx) => {
+  memRoutes = DEFAULT_LAKSHADWEEP_ROUTES.map((def, idx) => {
     const from = islandMap[def.from];
     const to = islandMap[def.to];
     const hex = (8000 + idx + 1).toString(16).padStart(24, '0');
@@ -72,7 +70,8 @@ function resetInMemory() {
       fromIsland: from,
       toIsland: to,
       distance: def.distance,
-      speed: 30,
+      speed: 10,
+      hazardStatus: 'Clear', // 'Clear' | 'Dangerous' | 'Storm-battered' | 'Blocked'
       isHazard: false,
       isPatrolZone: false
     };
@@ -82,7 +81,7 @@ function resetInMemory() {
 resetInMemory();
 
 module.exports = {
-  calculateHaversineKm,
+  calculateNauticalMiles,
   getIslands: () => memIslands,
   getIslandById: id => memIslands.find(i => String(i._id) === String(id)),
   addIsland: island => {
@@ -91,35 +90,62 @@ module.exports = {
       _id: hex,
       name: island.name,
       lat: Number(island.lat),
-      lng: Number(island.lng)
+      lng: Number(island.lng),
+      type: island.type || 'Custom Anchorage',
+      hazardStatus: island.hazardStatus || 'Clear',
+      isCustom: true
     };
     memIslands.push(newIsland);
     return newIsland;
+  },
+  updateIslandHazard: (id, payload) => {
+    const isl = memIslands.find(i => String(i._id) === String(id));
+    if (!isl) return null;
+    if (payload.hazardStatus) {
+      isl.hazardStatus = payload.hazardStatus;
+    }
+    return isl;
   },
   getRoutes: () => memRoutes,
   getRouteById: id => memRoutes.find(r => String(r._id) === String(id)),
   addRoute: route => {
     const from = memIslands.find(i => String(i._id) === String(route.fromIsland));
     const to = memIslands.find(i => String(i._id) === String(route.toIsland));
-    const distance = Number(route.distance) || calculateHaversineKm(from.lat, from.lng, to.lat, to.lng);
+    const distance = Number(route.distance) || calculateNauticalMiles(from.lat, from.lng, to.lat, to.lng);
     const hex = (8000 + memRoutes.length + 1).toString(16).padStart(24, '0');
     const newRoute = {
       _id: hex,
       fromIsland: from,
       toIsland: to,
       distance,
-      speed: Number(route.speed) || 30,
-      isHazard: Boolean(route.isHazard),
-      isPatrolZone: Boolean(route.isPatrolZone)
+      speed: Number(route.speed) || 10,
+      hazardStatus: route.hazardStatus || 'Clear',
+      isHazard: route.hazardStatus === 'Dangerous' || route.hazardStatus === 'Storm-battered',
+      isPatrolZone: route.hazardStatus === 'Blocked'
     };
     memRoutes.push(newRoute);
     return newRoute;
   },
-  updateRouteHazard: (id, { isHazard, isPatrolZone }) => {
+  updateRouteHazard: (id, payload) => {
     const r = memRoutes.find(r => String(r._id) === String(id));
     if (!r) return null;
-    if (typeof isHazard === 'boolean') r.isHazard = isHazard;
-    if (typeof isPatrolZone === 'boolean') r.isPatrolZone = isPatrolZone;
+
+    if (payload.hazardStatus) {
+      r.hazardStatus = payload.hazardStatus;
+      r.isHazard = payload.hazardStatus === 'Dangerous' || payload.hazardStatus === 'Storm-battered';
+      r.isPatrolZone = payload.hazardStatus === 'Blocked';
+    } else {
+      if (typeof payload.isHazard === 'boolean') {
+        r.isHazard = payload.isHazard;
+        if (payload.isHazard) r.hazardStatus = 'Storm-battered';
+        else if (!r.isPatrolZone) r.hazardStatus = 'Clear';
+      }
+      if (typeof payload.isPatrolZone === 'boolean') {
+        r.isPatrolZone = payload.isPatrolZone;
+        if (payload.isPatrolZone) r.hazardStatus = 'Blocked';
+        else if (!r.isHazard) r.hazardStatus = 'Clear';
+      }
+    }
     return r;
   },
   resetInMemory

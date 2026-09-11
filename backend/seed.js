@@ -6,41 +6,38 @@ const Route = require('./models/Route');
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pirate-navigation';
 
 const islands = [
-  { name: 'Colaba', lat: 18.9067, lng: 72.8147 },
-  { name: 'Marine Drive', lat: 18.9438, lng: 72.8232 },
-  { name: 'Dadar', lat: 19.0178, lng: 72.8478 },
-  { name: 'Bandra', lat: 19.0596, lng: 72.8295 },
-  { name: 'Kurla', lat: 19.0726, lng: 72.8845 },
-  { name: 'Ghatkopar', lat: 19.0860, lng: 72.9090 },
-  { name: 'Andheri', lat: 19.1197, lng: 72.8464 },
-  { name: 'Borivali', lat: 19.2307, lng: 72.8567 },
-  { name: 'Thane', lat: 19.2183, lng: 72.9781 },
-  { name: 'Vashi', lat: 19.0771, lng: 72.9986 },
-  { name: 'Trombay', lat: 19.0160, lng: 72.9150 },
-  { name: 'Elephanta Island', lat: 18.9633, lng: 72.9315 }
+  { name: 'Kavaratti', lat: 10.5667, lng: 72.6417 },
+  { name: 'Agatti', lat: 10.8533, lng: 72.1947 },
+  { name: 'Bangaram', lat: 10.9400, lng: 72.2900 },
+  { name: 'Minicoy', lat: 8.2833, lng: 73.0500 },
+  { name: 'Kalpeni', lat: 10.0833, lng: 73.6500 },
+  { name: 'Andrott', lat: 10.8167, lng: 73.6667 },
+  { name: 'Amini', lat: 11.1242, lng: 72.7317 },
+  { name: 'Kadmat', lat: 11.2333, lng: 72.7833 },
+  { name: 'Kiltan', lat: 11.4833, lng: 73.0000 },
+  { name: 'Chetlat', lat: 11.6833, lng: 72.7000 },
+  { name: 'Bitra', lat: 11.6000, lng: 72.1833 },
+  { name: 'Suheli Par', lat: 10.0833, lng: 72.2833 }
 ];
 
 const routeDefs = [
-  { from: 'Colaba', to: 'Marine Drive', distance: 4.5 },
-  { from: 'Colaba', to: 'Elephanta Island', distance: 11.2 },
-  { from: 'Marine Drive', to: 'Dadar', distance: 9.2 },
-  { from: 'Dadar', to: 'Bandra', distance: 5.1 },
-  { from: 'Dadar', to: 'Kurla', distance: 7.3 },
-  { from: 'Bandra', to: 'Kurla', distance: 6.8 },
-  { from: 'Bandra', to: 'Andheri', distance: 8.4 },
-  { from: 'Kurla', to: 'Ghatkopar', distance: 4.2 },
-  { from: 'Kurla', to: 'Andheri', distance: 8.1 },
-  { from: 'Kurla', to: 'Trombay', distance: 7.5 },
-  { from: 'Trombay', to: 'Elephanta Island', distance: 7.2 },
-  { from: 'Trombay', to: 'Vashi', distance: 12.5 },
-  { from: 'Ghatkopar', to: 'Vashi', distance: 14.0 },
-  { from: 'Ghatkopar', to: 'Thane', distance: 16.5 },
-  { from: 'Andheri', to: 'Borivali', distance: 13.8 },
-  { from: 'Borivali', to: 'Thane', distance: 18.2 },
-  { from: 'Thane', to: 'Vashi', distance: 15.5 },
-  { from: 'Andheri', to: 'Ghatkopar', distance: 7.8 },
-  { from: 'Colaba', to: 'Dadar', distance: 13.5 },
-  { from: 'Dadar', to: 'Trombay', distance: 11.0 }
+  { from: 'Agatti', to: 'Bangaram', distance: 7.2, hazardStatus: 'Clear' },
+  { from: 'Agatti', to: 'Kavaratti', distance: 32.4, hazardStatus: 'Clear' },
+  { from: 'Bangaram', to: 'Amini', distance: 28.5, hazardStatus: 'Clear' },
+  { from: 'Amini', to: 'Kadmat', distance: 7.1, hazardStatus: 'Clear' },
+  { from: 'Kadmat', to: 'Kiltan', distance: 20.3, hazardStatus: 'Clear' },
+  { from: 'Kiltan', to: 'Chetlat', distance: 21.6, hazardStatus: 'Clear' },
+  { from: 'Chetlat', to: 'Bitra', distance: 31.0, hazardStatus: 'Clear' },
+  { from: 'Bitra', to: 'Bangaram', distance: 40.2, hazardStatus: 'Clear' },
+  { from: 'Amini', to: 'Kavaratti', distance: 34.0, hazardStatus: 'Clear' },
+  { from: 'Kadmat', to: 'Andrott', distance: 57.2, hazardStatus: 'Clear' },
+  { from: 'Kavaratti', to: 'Andrott', distance: 62.1, hazardStatus: 'Clear' },
+  { from: 'Andrott', to: 'Kalpeni', distance: 44.0, hazardStatus: 'Clear' },
+  { from: 'Kavaratti', to: 'Kalpeni', distance: 67.4, hazardStatus: 'Clear' },
+  { from: 'Kavaratti', to: 'Suheli Par', distance: 35.8, hazardStatus: 'Clear' },
+  { from: 'Suheli Par', to: 'Minicoy', distance: 118.2, hazardStatus: 'Clear' },
+  { from: 'Kalpeni', to: 'Minicoy', distance: 114.5, hazardStatus: 'Clear' },
+  { from: 'Kavaratti', to: 'Minicoy', distance: 139.0, hazardStatus: 'Clear' }
 ];
 
 async function seed() {

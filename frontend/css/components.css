@@ -911,3 +911,72 @@
   color: #ffb703;
 }
 
+/* Island Hazard States */
+.island-marker-pin.hazard-dangerous .island-marker-icon {
+  border-color: #ff9f1c !important;
+  background: radial-gradient(circle, #522f03 0%, #201300 100%) !important;
+  box-shadow: 0 0 14px rgba(255, 159, 28, 0.7) !important;
+}
+.island-marker-pin.hazard-dangerous .island-marker-label {
+  border-color: #ff9f1c !important;
+  color: #ffb703 !important;
+}
+
+.island-marker-pin.hazard-storm .island-marker-icon {
+  border-color: #b5179e !important;
+  background: radial-gradient(circle, #4a0d42 0%, #1c0519 100%) !important;
+  box-shadow: 0 0 16px rgba(181, 23, 158, 0.8) !important;
+  animation: tempest-flicker 2s infinite ease-in-out;
+}
+.island-marker-pin.hazard-storm .island-marker-label {
+  border-color: #b5179e !important;
+  color: #f72585 !important;
+}
+
+.island-marker-pin.hazard-blocked .island-marker-icon {
+  border-color: #e63946 !important;
+  background: radial-gradient(circle, #5e0e15 0%, #290408 100%) !important;
+  box-shadow: 0 0 18px rgba(230, 57, 70, 0.9) !important;
+  animation: pulse-border 1.5s infinite;
+}
+.island-marker-pin.hazard-blocked .island-marker-label {
+  border-color: #e63946 !important;
+  color: #ff4d6d !important;
+}
+
+@keyframes tempest-flicker {
+  0%, 100% { box-shadow: 0 0 12px rgba(181, 23, 158, 0.6); }
+  50% { box-shadow: 0 0 22px rgba(247, 37, 133, 0.9); }
+}
+
+/* Hazard Tabs in Controller */
+.hazard-tab-buttons {
+  display: flex;
+  gap: 4px;
+  background: rgba(6, 13, 20, 0.6);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  margin-bottom: 8px;
+}
+
+.hazard-tab-btn {
+  flex: 1;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: 'Cinzel', serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.hazard-tab-btn.active {
+  background: var(--gold-dark);
+  color: var(--parchment-light);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+

@@ -33,19 +33,20 @@ mongoose.connect(MONGODB_URI, {
     console.log('[DB] Connected to MongoDB database successfully.');
   })
   .catch(err => {
-    console.warn(`[DB] MongoDB offline (${err.message}). Using autonomous Mumbai in-memory storage.`);
+    console.warn(`[DB] MongoDB offline (${err.message}). Using autonomous Lakshadweep in-memory storage.`);
   })
   .finally(() => {
     app.listen(PORT, () => {
       console.log(`
 ============================================================
-      THE PIRATE NAVIGATION SYSTEM — MUMBAI EDITION
+  THE PIRATE NAVIGATION SYSTEM — LAKSHADWEEP ARCHIPELAGO
 ============================================================
   Server Port:      ${PORT}
   API Endpoints:    http://localhost:${PORT}/api
   Frontend App:     http://localhost:${PORT}/
-  Distance Units:   Kilometers (km)
-  Network Nodes:    Mumbai Corridors (Kurla, Thane, Colaba...)
+  Distance Units:   Nautical Miles (NM)
+  Speed Units:      Knots (kts)
+  Network Nodes:    Lakshadweep Atolls (Kavaratti, Agatti, Minicoy...)
 ============================================================
       `);
     });

@@ -53,10 +53,10 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id/hazard', async (req, res) => {
   try {
-    const { isHazard, isPatrolZone } = req.body;
+    const { isHazard, isPatrolZone, hazardStatus } = req.body;
 
     if (mongoose.connection.readyState !== 1) {
-      const updated = inMemoryDb.updateRouteHazard(req.params.id, { isHazard, isPatrolZone });
+      const updated = inMemoryDb.updateRouteHazard(req.params.id, req.body);
       if (!updated) return res.status(404).json({ error: 'Route not found' });
       return res.json(updated);
     }
@@ -80,14 +80,9 @@ router.patch('/:id/hazard', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const route = await Route.findByIdAndDelete(req.params.id);
-    if (!route) return res.status(404).json({ error: 'Route not found' });
-    res.json({ message: 'Route deleted' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+router.post('/reset', (req, res) => {
+  inMemoryDb.resetInMemory();
+  res.json({ message: 'Archipelago waters reset to baseline' });
 });
 
 module.exports = router;
